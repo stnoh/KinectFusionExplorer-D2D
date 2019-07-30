@@ -67,11 +67,6 @@ private:
     ID2D1Factory*               m_pD2DFactory;
 
     /// <summary>
-    /// Main processing function
-    /// </summary>
-    void                        Update();
-
-    /// <summary>
     /// Save a mesh
     /// </summary>
     /// <returns>S_OK on success, otherwise failure code</returns>
@@ -108,12 +103,6 @@ private:
     /// </summary>
     /// <param name="fFramesPerSecond">current frame rate</param>
     void                        SetFramesPerSecond(float fFramesPerSecond);
-
-    /// <summary>
-    /// Set the index of the GPU processor device initialized, or -1 for CPU
-    /// </summary>
-    /// <param name="gpuIndex">The index of the initialized GPU processor device, or -1 fo CPU.</param>
-    void                        SetDeviceIndexInitialized(int deviceIndex);
 
     /// <summary>
     /// The reconstruction parameters passed to the processor

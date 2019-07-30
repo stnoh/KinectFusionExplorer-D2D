@@ -148,12 +148,6 @@ private:
     DWORD                       MainLoop();
 
     /// <summary>
-    /// Create the first connected Kinect found.
-    /// </summary>
-    /// <returns>S_OK on success, otherwise failure code</returns>
-    HRESULT                     CreateFirstConnected();
-
-    /// <summary>
     /// Setup or update the Undistortion calculation for the connected camera
     /// </summary>
     HRESULT                     SetupUndistortion();
@@ -233,12 +227,6 @@ private:
     /// </summary>
     /// <returns>S_OK on success, otherwise failure code</returns>
     HRESULT                     FindCameraPoseAlignDepthFloatToReconstruction();
-
-    /// <summary>
-    /// Calculate the residual alignment energy following AlignPointClouds.
-    /// </summary>
-    /// <returns>S_OK on success, otherwise failure code</returns>
-    HRESULT                     CalculateAlignmentResidualEnergy(float &alignmentEnergy);
 
     /// <summary>
     /// Performs raycasting for given pose and sets the tracking reference frame.
