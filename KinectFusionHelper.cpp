@@ -38,81 +38,6 @@ void SetIdentityMatrix(Matrix4 &mat)
 }
 
 /// <summary>
-/// Extract translation Vector3 from the Matrix4 4x4 transformation in M41,M42,M43
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <param name="translation">Array of 3 floating point values for translation.</param>
-void ExtractVector3Translation(const Matrix4 &transform, _Out_cap_c_(3) float *translation)
-{
-    translation[0] = transform.M41;
-    translation[1] = transform.M42;
-    translation[2] = transform.M43;
-}
-
-/// <summary>
-/// Extract translation Vector3 from the 4x4 Matrix in M41,M42,M43
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <returns>Returns a Vector3 containing the translation.</returns>
-Vector3 ExtractVector3Translation(const Matrix4 &transform)
-{
-    Vector3 translation;
-    translation.x = transform.M41;
-    translation.y = transform.M42;
-    translation.z = transform.M43;
-    return translation;
-}
-
-/// <summary>
-/// Extract 3x3 rotation from the 4x4 Matrix and return in new Matrix4
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <returns>Returns a Matrix4 containing the rotation.</returns>
-Matrix4 Extract3x3Rotation(const Matrix4 &transform)
-{
-    Matrix4 rotation;
-
-    rotation.M11 = transform.M11;
-    rotation.M12 = transform.M12;
-    rotation.M13 = transform.M13;
-    rotation.M14 = 0;
-
-    rotation.M21 = transform.M21;
-    rotation.M22 = transform.M22;
-    rotation.M23 = transform.M23;
-    rotation.M24 = 0;
-
-    rotation.M31 = transform.M31;
-    rotation.M32 = transform.M32;
-    rotation.M33 = transform.M33;
-    rotation.M34 = 0;
-
-    rotation.M41 = 0;
-    rotation.M42 = 0;
-    rotation.M43 = 0;
-    rotation.M44 = 1;
-
-    return rotation;
-}
-
-/// <summary>
-/// Extract 3x3 rotation matrix from the Matrix4 4x4 transformation:
-/// Then convert to Euler angles.
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <param name="rotation">Array of 3 floating point values for euler angles.</param>
-void ExtractRot2Euler(const Matrix4 &transform, _Out_cap_c_(3) float *rotation)
-{
-    float phi = atan2f(transform.M23, transform.M33);
-    float theta = asinf(-transform.M13);
-    float psi = atan2f(transform.M12, transform.M11);
-
-    rotation[0] = phi;	// This is rotation about x,y,z, or pitch, yaw, roll respectively
-    rotation[1] = theta;
-    rotation[2] = psi;
-}
-
-/// <summary>
 /// Test whether the camera moved too far between sequential frames by looking at starting and end transformation matrix.
 /// We assume that if the camera moves or rotates beyond a reasonable threshold, that we have lost track.
 /// Note that on lower end machines, if the processing frame rate decreases below 30Hz, this limit will potentially have
@@ -133,12 +58,32 @@ bool CameraTransformFailed(const Matrix4 &T_initial, const Matrix4 &T_final, flo
     // Calculate the deltas
     float eulerInitial[3];
     float eulerFinal[3];
+	
+	/// Extract 3x3 rotation matrix from the Matrix4 4x4 transformation:
+	/// Then convert to Euler angles.
+	auto ExtractRot2Euler = [](const Matrix4 &transform, _Out_cap_c_(3) float *rotation)->void {
+		float phi = atan2f(transform.M23, transform.M33);
+		float theta = asinf(-transform.M13);
+		float psi = atan2f(transform.M12, transform.M11);
+
+		rotation[0] = phi;	// This is rotation about x,y,z, or pitch, yaw, roll respectively
+		rotation[1] = theta;
+		rotation[2] = psi;
+	};
 
     ExtractRot2Euler(T_initial, eulerInitial);
     ExtractRot2Euler(T_final, eulerFinal);
 
     float transInitial[3];
     float transFinal[3];
+
+	/// Extract translation Vector3 from the Matrix4 4x4 transformation in M41,M42,M43
+	auto ExtractVector3Translation = [](const Matrix4 &transform, _Out_cap_c_(3) float *translation)->void
+	{
+		translation[0] = transform.M41;
+		translation[1] = transform.M42;
+		translation[2] = transform.M43;
+	};
 
     ExtractVector3Translation(T_initial, transInitial);
     ExtractVector3Translation(T_final, transFinal);
@@ -179,90 +124,6 @@ bool CameraTransformFailed(const Matrix4 &T_initial, const Matrix4 &T_final, flo
     }
 
     return failRot || failTrans;
-}
-
-/// <summary>
-/// Invert/Transpose the 3x3 Rotation Matrix Component of a 4x4 matrix
-/// </summary>
-/// <param name="rot">The rotation matrix to invert.</param>
-void InvertRotation(Matrix4 &rot)
-{
-    // Invert equivalent to a transpose for 3x3 rotation rotrices when orthogonal
-    float tmp = rot.M12;
-    rot.M12 = rot.M21;
-    rot.M21 = tmp;
-
-    tmp = rot.M13;
-    rot.M13 = rot.M31;
-    rot.M31 = tmp;
-
-    tmp = rot.M23;
-    rot.M23 = rot.M32;
-    rot.M32 = tmp;
-}
-
-/// <summary>
-/// Negate the 3x3 Rotation Matrix Component of a 4x4 matrix
-/// </summary>
-/// <param name="rot">The rotation matrix to negate.</param>
-void NegateRotation(Matrix4 &rot)
-{
-    rot.M11 = -rot.M11;
-    rot.M12 = -rot.M12;
-    rot.M13 = -rot.M13;
-
-    rot.M21 = -rot.M21;
-    rot.M22 = -rot.M22;
-    rot.M23 = -rot.M23;
-
-    rot.M31 = -rot.M31;
-    rot.M32 = -rot.M32;
-    rot.M33 = -rot.M33;
-}
-
-/// <summary>
-/// Rotate a vector with the 3x3 Rotation Matrix Component of a 4x4 matrix
-/// </summary>
-/// <param name="vec">The Vector3 to rotate.</param>
-/// <param name="rot">Rotation matrix.</param>
-Vector3 RotateVector(const Vector3 &vec, const Matrix4 & rot)
-{
-    // we only use the rotation component here
-    Vector3 result;
-
-    result.x = (rot.M11 * vec.x) + (rot.M21 * vec.y) + (rot.M31 * vec.z);
-    result.y = (rot.M12 * vec.x) + (rot.M22 * vec.y) + (rot.M32 * vec.z);
-    result.z = (rot.M13 * vec.x) + (rot.M23 * vec.y) + (rot.M33 * vec.z);
-
-    return result;
-}
-/// <summary>
-/// Invert Matrix4 Pose either from WorldToCameraTransform (view) matrix to CameraToWorldTransform camera pose matrix (world/SE3) or vice versa
-/// </summary>
-/// <param name="transform">The camera pose transform matrix.</param>
-/// <returns>Returns a Matrix4 containing the inverted camera pose.</returns>
-Matrix4 InvertMatrix4Pose(const Matrix4 &transform)
-{
-    // Given the SE3 world transform transform T = [R|t], the inverse view transform matrix is simply:
-    // T^-1 = [R^T | -R^T . t ]
-    // This also works the opposite way to get the world transform, given the view transform matrix.
-    Matrix4 rotation = Extract3x3Rotation(transform);
-
-    Matrix4 invRotation = rotation;
-    InvertRotation(invRotation);  // invert(transpose) 3x3 rotation
-
-    Matrix4 negRotation = invRotation;
-    NegateRotation(negRotation);  // negate 3x3 rotation
-
-    Vector3 translation = ExtractVector3Translation(transform);
-    Vector3 invTranslation = RotateVector(translation, negRotation);
-
-    // Add the translation back in
-    invRotation.M41 = invTranslation.x;
-    invRotation.M42 = invTranslation.y;
-    invRotation.M43 = invTranslation.z;
-
-    return invRotation;
 }
 
 /// <summary>

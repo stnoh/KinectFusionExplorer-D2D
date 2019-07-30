@@ -15,35 +15,6 @@
 void SetIdentityMatrix(Matrix4 &mat);
 
 /// <summary>
-/// Extract translation values from the 4x4 Matrix4 transformation in M41,M42,M43
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <param name="translation">Array of 3 floating point values for translation.</param>
-void ExtractVector3Translation(const Matrix4 &transform, _Out_cap_c_(3) float *translation);
-
-/// <summary>
-/// Extract translation Vector3 from the 4x4 Matrix transformation in M41,M42,M43
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <returns>Returns a Vector3 containing the translation.</returns>
-Vector3 ExtractVector3Translation(const Matrix4 &transform);
-
-/// <summary>
-/// Extract 3x3 rotation from the 4x4 Matrix and return in new Matrix4
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <returns>Returns a Matrix4 containing the rotation.</returns>
-Matrix4 Extract3x3Rotation(const Matrix4 &transform);
-
-/// <summary>
-/// Extract 3x3 rotation matrix from the Matrix4 4x4 transformation:
-/// Then convert to Euler angles.
-/// </summary>
-/// <param name="transform">The transform matrix.</param>
-/// <param name="rotation">Array of 3 floating point values for euler angles.</param>
-void ExtractRot2Euler(const Matrix4 &transform, _Out_cap_c_(3) float *rotation);
-
-/// <summary>
 /// Test whether the camera moved too far between sequential frames by looking at starting and end transformation matrix.
 /// We assume that if the camera moves or rotates beyond a reasonable threshold, that we have lost track.
 /// Note that on lower end machines, if the processing frame rate decreases below 30Hz, this limit will potentially have
@@ -55,32 +26,6 @@ void ExtractRot2Euler(const Matrix4 &transform, _Out_cap_c_(3) float *rotation);
 /// <param name="maxRotDegrees">The maximum rotation in degrees we expect about the x,y,z axes between frames under normal motion.</param>
 /// <returns>true if camera transformation is greater than the threshold, otherwise false</returns>
 bool CameraTransformFailed(const Matrix4 &T_initial, const Matrix4 &T_final, float maxTrans, float maxRotDegrees);
-
-/// <summary>
-/// Invert the 3x3 Rotation Matrix Component of a 4x4 matrix
-/// </summary>
-/// <param name="rot">The rotation matrix to invert.</param>
-void InvertRotation(Matrix4 &rot);
-
-/// <summary>
-/// Negate the 3x3 Rotation Matrix Component of a 4x4 matrix
-/// </summary>
-/// <param name="rot">The rotation matrix to negate.</param>
-void NegateRotation(Matrix4 &rot);
-
-/// <summary>
-/// Rotate a vector with the 3x3 Rotation Matrix Component of a 4x4 matrix
-/// </summary>
-/// <param name="vec">The Vector3 to rotate.</param>
-/// <param name="rot">Rotation matrix.</param>
-Vector3 RotateVector(const Vector3 &vec, const Matrix4 &rot);
-
-/// <summary>
-/// Invert Matrix4 Pose either from WorldToCameraTransform (view) matrix to CameraToWorldTransform pose matrix (world/SE3) or vice versa
-/// </summary>
-/// <param name="transform">The camera pose transform matrix.</param>
-/// <returns>Returns a Matrix4 containing the inverted camera pose.</returns>
-Matrix4 InvertMatrix4Pose(const Matrix4 &transform);
 
 /// <summary>
 /// Write Binary .STL mesh file
