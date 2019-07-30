@@ -314,22 +314,9 @@ void CKinectFusionExplorer::HandleCompletedFrame()
             EnableWindow(hButton, FALSE);
             hButton = GetDlgItem(m_hWnd, IDC_VOXELS_Z_640);
             EnableWindow(hButton, FALSE);
-
-            if (Is64BitApp() == FALSE)
-            {
-                // Also disable 512 voxel resolution in one arbitrary axis on 32bit machines
-                hButton = GetDlgItem(m_hWnd, IDC_VOXELS_Y_512);
-                EnableWindow(hButton, FALSE);
-            }
         }
         else if (pFrame->m_deviceMemory <= 2 * Mebi)  // 2GB
         {
-            if (Is64BitApp() == FALSE)
-            {
-                // Disable 640 voxel resolution in one arbitrary axis on 32bit machines
-                HWND hButton = GetDlgItem(m_hWnd, IDC_VOXELS_Y_640);
-                EnableWindow(hButton, FALSE);
-            }
             // True 64 bit apps seem to be more able to cope with large volume sizes.
         }
 

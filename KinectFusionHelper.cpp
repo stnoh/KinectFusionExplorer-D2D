@@ -874,23 +874,6 @@ HRESULT WriteTexturedeAsciiObjMeshFile(INuiFusionColorMesh *mesh, LPOLESTR lpOle
 }
 
 /// <summary>
-/// Returns whether this is running as a 32 or 64bit application.
-/// </summary>
-/// <returns>TRUE indicates a 64bit app.</returns>
-BOOL Is64BitApp()
-{
-#if defined(_WIN64)
-    // If _WIN64 is defined, we are a 64-bit version as 
-    // this will only be defined on Win64
-    return TRUE; 
-#else
-    // 32-bit programs run on both 32-bit and 64-bit Windows with WOW64, 
-    // however the restrictions are the same for our application.
-    return FALSE;
-#endif
-}
-
-/// <summary>
 /// Write 32bit BMP image file
 /// </summary>
 /// <param name="pszFile">The full path and filename of the file to save.</param>

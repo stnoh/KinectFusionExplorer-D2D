@@ -126,12 +126,6 @@ HRESULT WriteAsciiPlyMeshFile(INuiFusionColorMesh *mesh, LPOLESTR lpOleFileName,
 HRESULT WriteTexturedeAsciiObjMeshFile(INuiFusionColorMesh *mesh, LPOLESTR lpOleFileName, bool flipYZ, NUI_FUSION_IMAGE_FRAME *pTexture, const std::vector<Vector3> &texcoords);
 
 /// <summary>
-/// Returns whether this is running as a 32 or 64bit application.
-/// </summary>
-/// <returns>TRUE indicates a 64bit app.</returns>
-BOOL Is64BitApp();
-
-/// <summary>
 /// Write 32bit BMP image file
 /// </summary>
 /// <param name="pszFile">The full path and filename of the file to save.</param>
