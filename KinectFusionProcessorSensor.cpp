@@ -22,7 +22,7 @@
 /// Copy and do depth frame undistortion.
 /// </summary>
 /// <returns>S_OK on success, otherwise failure code</returns>
-HRESULT KinectFusionProcessor::CopyDepth(INT64& currentDepthFrameTime)
+HRESULT KinectFusionProcessorSensor::CopyDepth(INT64& currentDepthFrameTime)
 {
 	// wrapping previous function by lambda
 	auto copyDepth = [&](IDepthFrame* pDepthFrame)->HRESULT {
@@ -63,7 +63,7 @@ HRESULT KinectFusionProcessor::CopyDepth(INT64& currentDepthFrameTime)
 	if (FAILED(hr))
 	{
 		SafeRelease(pDepthFrame);
-		//SetStatusMessage(L"Kinect depth stream get frame call failed.");
+		//SetStatusMessage(L"Kinect depth stream get frame call failed."); // no message box in this context ...
 		return hr;
 	}
 
@@ -79,23 +79,23 @@ HRESULT KinectFusionProcessor::CopyDepth(INT64& currentDepthFrameTime)
 /// <summary>
 /// Shuts down the sensor
 /// </summary>
-void KinectFusionProcessor::ShutdownSensor()
+void KinectFusionProcessorSensor::ShutdownSensor()
 {
-    //AssertOwnThread(); // commented out due to scope problem
+	//AssertOwnThread(); // commented out due to scope problem
 
-    // Clean up Kinect
-    if (m_pNuiSensor != nullptr)
-    {
-        m_pNuiSensor->Close();
-        SafeRelease(m_pNuiSensor);
-    }
+	// Clean up Kinect
+	if (m_pNuiSensor != nullptr)
+	{
+		m_pNuiSensor->Close();
+		SafeRelease(m_pNuiSensor);
+	}
 }
 
 /// <summary>
 /// Initializes the default Kinect sensor
 /// </summary>
 /// <returns>indicates success or failure</returns>
-HRESULT KinectFusionProcessor::InitializeDefaultSensor()
+HRESULT KinectFusionProcessorSensor::InitializeDefaultSensor()
 {
 	HRESULT hr;
 
@@ -128,10 +128,11 @@ HRESULT KinectFusionProcessor::InitializeDefaultSensor()
 			hr = m_pNuiSensor->get_CoordinateMapper(&m_pMapper);
 		}
 
-		if (SUCCEEDED(hr))
-		{
-			hr = m_pMapper->SubscribeCoordinateMappingChanged(&m_coordinateMappingChangedEvent);
-		}
+		// [CAUTION] it is subscribed outside of this scope.
+		//if (SUCCEEDED(hr))
+		//{
+		//	hr = m_pMapper->SubscribeCoordinateMappingChanged(&m_coordinateMappingChangedEvent);
+		//}
 
 		if (SUCCEEDED(hr))
 		{
@@ -155,7 +156,7 @@ HRESULT KinectFusionProcessor::InitializeDefaultSensor()
 
 	if (!m_pNuiSensor || FAILED(hr))
 	{
-		SetStatusMessage(L"No ready Kinect found!");
+		//SetStatusMessage(L"No ready Kinect found!"); // no message box in this context ...
 		return E_FAIL;
 	}
 
@@ -165,7 +166,7 @@ HRESULT KinectFusionProcessor::InitializeDefaultSensor()
 /// <summary>
 /// Setup or update the Undistortion calculation for the connected camera
 /// </summary>
-HRESULT KinectFusionProcessor::SetupUndistortion()
+HRESULT KinectFusionProcessorSensor::SetupUndistortion(NUI_FUSION_CAMERA_PARAMETERS m_cameraParameters, UINT width, UINT height, bool& m_bHaveValidCameraParameters)
 {
     //AssertOwnThread(); // commented out due to scope problem
 
@@ -173,9 +174,6 @@ HRESULT KinectFusionProcessor::SetupUndistortion()
 
     if (m_cameraParameters.principalPointX != 0)
     {
-
-        const UINT width = m_paramsCurrent.m_cDepthWidth;
-        const UINT height = m_paramsCurrent.m_cDepthHeight;
         const UINT depthBufferSize = width * height;
 
         CameraSpacePoint cameraFrameCorners[4] = //at 1 meter distance. Take into account that depth frame is mirrored
@@ -225,14 +223,14 @@ HRESULT KinectFusionProcessor::SetupUndistortion()
             hr = m_pMapper->MapCameraPointsToDepthSpace(width, cameraCoordsRow, width, &m_pDepthDistortionMap[rowID * width]);
             if(FAILED(hr))
             {
-                SetStatusMessage(L"Failed to initialize Kinect Coordinate Mapper.");
+                //SetStatusMessage(L"Failed to initialize Kinect Coordinate Mapper."); // no message box in this context ...
                 return hr;
             }
         }
 
         if (nullptr == m_pDepthDistortionLT)
         {
-            SetStatusMessage(L"Failed to initialize Kinect Fusion depth image distortion Lookup Table.");
+            //SetStatusMessage(L"Failed to initialize Kinect Fusion depth image distortion Lookup Table."); // no message box in this context ...
             return E_OUTOFMEMORY;
         }
 
@@ -259,7 +257,7 @@ HRESULT KinectFusionProcessor::SetupUndistortion()
 /// </summary>
 /// <param name="imageFrame">The color image frame to copy.</param>
 /// <returns>S_OK on success, otherwise failure code</returns>
-HRESULT KinectFusionProcessor::CopyColor(INT64& currentColorFrameTime, bool& colorSynchronized)
+HRESULT KinectFusionProcessorSensor::CopyColor(const NUI_FUSION_IMAGE_FRAME* m_pColorImage, INT64& currentColorFrameTime, bool& colorSynchronized)
 {
 	// wrapping previous function by lambda
 	auto copyColor = [&](IColorFrame* pColorFrame)->HRESULT {
@@ -267,7 +265,7 @@ HRESULT KinectFusionProcessor::CopyColor(INT64& currentColorFrameTime, bool& col
 
 		if (nullptr == m_pColorImage)
 		{
-			SetStatusMessage(L"Error copying color texture pixels.");
+			//SetStatusMessage(L"Error copying color texture pixels."); // no message box in this context ...
 			return E_FAIL;
 		}
 
@@ -279,11 +277,11 @@ HRESULT KinectFusionProcessor::CopyColor(INT64& currentColorFrameTime, bool& col
 		}
 
 		// Copy the color pixels so we can return the image frame
-		hr = pColorFrame->CopyConvertedFrameDataToArray(cColorWidth * cColorHeight * sizeof(RGBQUAD), destColorBuffer->pBits, ColorImageFormat_Bgra);
+		hr = pColorFrame->CopyConvertedFrameDataToArray(m_pColorImage->width * m_pColorImage->height * sizeof(RGBQUAD), destColorBuffer->pBits, ColorImageFormat_Bgra);
 
 		if (FAILED(hr))
 		{
-			SetStatusMessage(L"Error copying color texture pixels.");
+			//SetStatusMessage(L"Error copying color texture pixels."); // no message box in this context ...
 			hr = E_FAIL;
 		}
 
@@ -322,13 +320,13 @@ HRESULT KinectFusionProcessor::CopyColor(INT64& currentColorFrameTime, bool& col
 /// Adjust color to the same space as depth
 /// </summary>
 /// <returns>S_OK for success, or failure code</returns>
-HRESULT KinectFusionProcessor::MapColorToDepth()
+HRESULT KinectFusionProcessorSensor::MapColorToDepth(const NUI_FUSION_IMAGE_FRAME* m_pColorImage, NUI_FUSION_IMAGE_FRAME* m_pResampledColorImageDepthAligned, KinectFusionParams m_paramsCurrent)
 {
     HRESULT hr = S_OK;
 
     if (nullptr == m_pColorImage || nullptr == m_pResampledColorImageDepthAligned 
-        || nullptr == m_pColorCoordinates || nullptr == m_pDepthVisibilityTestMap)
-    {
+		|| nullptr == m_pColorCoordinates || nullptr == m_pDepthVisibilityTestMap)
+	{
         return E_FAIL;
     }
 
@@ -337,19 +335,19 @@ HRESULT KinectFusionProcessor::MapColorToDepth()
 
     if (nullptr == srcColorBuffer || nullptr == destColorBuffer)
     {
-        SetStatusMessage(L"Error accessing color textures.");
+        //SetStatusMessage(L"Error accessing color textures."); // no message box in this context ...
         return E_NOINTERFACE;
     }
 
     if (FAILED(hr) || srcColorBuffer->Pitch == 0)
     {
-        SetStatusMessage(L"Error accessing color texture pixels.");
+        //SetStatusMessage(L"Error accessing color texture pixels."); // no message box in this context ...
         return  E_FAIL;
     }
 
     if (FAILED(hr) || destColorBuffer->Pitch == 0)
     {
-        SetStatusMessage(L"Error accessing color texture pixels.");
+        //SetStatusMessage(L"Error accessing color texture pixels."); // no message box in this context ...
         return  E_FAIL;
     }
 
@@ -368,8 +366,8 @@ HRESULT KinectFusionProcessor::MapColorToDepth()
     // construct dense depth points visibility test map so we can test for depth points that are invisible in color space
     const UINT16* const pDepthEnd = m_pDepthRawPixelBuffer + NUI_DEPTH_RAW_WIDTH * NUI_DEPTH_RAW_HEIGHT;
     const ColorSpacePoint* pColorPoint = m_pColorCoordinates;
-    const UINT testMapWidth = UINT(cColorWidth >> cVisibilityTestQuantShift);
-    const UINT testMapHeight = UINT(cColorHeight >> cVisibilityTestQuantShift);
+    const UINT testMapWidth  = UINT(m_pColorImage->width  >> cVisibilityTestQuantShift);
+    const UINT testMapHeight = UINT(m_pColorImage->height >> cVisibilityTestQuantShift);
     ZeroMemory(m_pDepthVisibilityTestMap, testMapWidth * testMapHeight * sizeof(UINT16));
     for(const UINT16* pDepth = m_pDepthRawPixelBuffer; pDepth < pDepthEnd; pDepth++, pColorPoint++)
     {
@@ -485,4 +483,44 @@ HRESULT KinectFusionProcessor::MapColorToDepth()
     }
 
     return hr;
+}
+
+
+/// <summary>
+/// Constructor
+/// </summary>
+KinectFusionProcessorSensor::KinectFusionProcessorSensor() :
+	m_pNuiSensor(nullptr)
+	, m_pDepthUndistortedPixelBuffer(nullptr)
+	, m_pDepthRawPixelBuffer(nullptr)
+	, m_pColorCoordinates(nullptr)
+	, m_pDepthVisibilityTestMap(nullptr)
+	, m_pMapper(nullptr)
+	, m_pDepthDistortionMap(nullptr)
+	, m_pDepthDistortionLT(nullptr)
+{
+	// [TODO?]
+}
+
+/// <summary>
+/// Destructor
+/// </summary>
+KinectFusionProcessorSensor::~KinectFusionProcessorSensor()
+{
+	SafeRelease(m_pMapper);
+
+	// Clean up the depth pixel array
+	SAFE_DELETE_ARRAY(m_pDepthUndistortedPixelBuffer);
+	SAFE_DELETE_ARRAY(m_pDepthRawPixelBuffer);
+
+	// Clean up the color coordinate array
+	SAFE_DELETE_ARRAY(m_pColorCoordinates);
+	SAFE_DELETE_ARRAY(m_pDepthVisibilityTestMap);
+
+	SAFE_DELETE_ARRAY(m_pDepthDistortionMap);
+	SAFE_DELETE_ARRAY(m_pDepthDistortionLT);
+
+	// done with depth frame reader
+	SafeRelease(m_pDepthFrameReader);
+	SafeRelease(m_pColorFrameReader);
 }

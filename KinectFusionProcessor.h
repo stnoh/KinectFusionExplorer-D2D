@@ -15,6 +15,87 @@
 
 #include "KinectFusionHelper.h"
 
+const int cVisibilityTestQuantShift = 2; // shift by 2 == divide by 4 ********* [TEMPORARY] global scope, should be removed later
+
+/// <summary>
+/// Kinect controlling part in Kinect Fusion algorithm.
+/// </summary>
+class KinectFusionProcessorSensor
+{
+	//static const int            cColorWidth = 1920;  // meaningless?
+	//static const int            cColorHeight = 1080; // meaningless?
+	static const UINT16         cDepthVisibilityTestThreshold = 50; //50 mm
+
+public:
+
+	/// <summary>
+	/// Constructor
+	/// </summary>
+	KinectFusionProcessorSensor();
+
+	/// <summary>
+	/// Destructor
+	/// </summary>
+	~KinectFusionProcessorSensor();
+
+	/// <summary>
+	/// Initialize the kinect sensor.
+	/// </summary>
+	/// <returns>S_OK on success, otherwise failure code</returns>
+	HRESULT                     InitializeDefaultSensor();
+
+	IKinectSensor*              m_pNuiSensor;
+	IDepthFrameReader*          m_pDepthFrameReader;
+	IColorFrameReader*          m_pColorFrameReader;
+
+	/// <summary>
+	/// Shuts down the sensor.
+	/// </summary>
+	void                        ShutdownSensor();
+
+	/// <summary>
+	/// Setup or update the Undistortion calculation for the connected camera
+	/// </summary>
+	HRESULT                     SetupUndistortion(NUI_FUSION_CAMERA_PARAMETERS m_cameraParameters, UINT width, UINT height, bool& m_bHaveValidCameraParameters);
+
+	/// <summary>
+	/// Copy the color data out of a Kinect image frame
+	/// </summary>
+	/// <returns>S_OK on success, otherwise failure code</returns>
+	HRESULT                     CopyColor(const NUI_FUSION_IMAGE_FRAME* m_pColorImage, INT64& currentColorFrameTime, bool& colorSynchronized);
+
+	/// <summary>
+	/// Adjust color to the same space as depth
+	/// </summary>
+	/// <returns>S_OK on success, otherwise failure code</returns>
+	HRESULT                     MapColorToDepth(const NUI_FUSION_IMAGE_FRAME* m_pColorImage, NUI_FUSION_IMAGE_FRAME* m_pResampledColorImageDepthAligned, KinectFusionParams m_paramsCurrent);
+
+	/// <summary>
+	/// Copy and do depth frame undistortion.
+	/// </summary>
+	/// <returns>S_OK on success, otherwise failure code</returns>
+	HRESULT                     CopyDepth(INT64& currentDepthFrameTime);
+
+	/// <summary>
+	/// Frames from the depth input.
+	/// </summary>
+	UINT16*                     m_pDepthUndistortedPixelBuffer;
+	UINT16*                     m_pDepthRawPixelBuffer;
+
+	/// <summary>
+	/// For mapping color to depth and depth distortion correction
+	/// </summary>
+	ColorSpacePoint*            m_pColorCoordinates;
+	UINT16*                     m_pDepthVisibilityTestMap;
+	//float                       m_colorToDepthDivisor; // meaningless
+	//float                       m_oneOverDepthDivisor; // meaningless
+	ICoordinateMapper*          m_pMapper;
+
+	DepthSpacePoint*            m_pDepthDistortionMap;
+	UINT*                       m_pDepthDistortionLT;
+};
+
+
 /// <summary>
 /// Performs all Kinect Fusion processing for the KinectFusionExplorer.
 /// All data capture and processing is done on a worker thread.
@@ -27,12 +108,11 @@ class KinectFusionProcessor
     static const int            cTimeDisplayInterval = 4;
     static const int            cRenderIntervalMilliseconds = 100; // Render every 100ms
     static const int            cMinTimestampDifferenceForFrameReSync = 30; // The minimum timestamp difference between depth and color (in ms) at which they are considered un-synchronized.
-    static const int            cColorWidth = 1920;
-    static const int            cColorHeight = 1080;
-    static const int            cVisibilityTestQuantShift = 2; // shift by 2 == divide by 4
-    static const UINT16         cDepthVisibilityTestThreshold = 50; //50 mm
 
 public:
+
+	// [TEMPORARY] facade class for Kinect, not related to KinectFusion core algorithm
+	KinectFusionProcessorSensor *m_pSensor;
 
     /// <summary>
     /// Constructor
@@ -61,12 +141,6 @@ public:
     /// </summary>
     /// <returns>S_OK on success, otherwise failure code</returns>
     HRESULT                     StartProcessing();
-
-    /// <summary>
-    /// Initialize the kinect sensor.
-    /// </summary>
-    /// <returns>S_OK on success, otherwise failure code</returns>
-    HRESULT                     InitializeDefaultSensor();
 
     /// <summary>
     /// Stops Kinect Fusion processing.
@@ -120,10 +194,6 @@ private:
     HANDLE                      m_hThread;
     DWORD                       m_threadId;
 
-    IKinectSensor*              m_pNuiSensor;
-    IDepthFrameReader*          m_pDepthFrameReader;
-    IColorFrameReader*          m_pColorFrameReader;
-
     LONGLONG                    m_cLastDepthFrameTimeStamp;
     LONGLONG                    m_cLastColorFrameTimeStamp;
 
@@ -131,11 +201,6 @@ private:
 
     KinectFusionProcessorFrame  m_frame;
     CRITICAL_SECTION            m_lockFrame;
-
-    /// <summary>
-    /// Shuts down the sensor.
-    /// </summary>
-    void                        ShutdownSensor();
 
     /// <summary>
     /// Thread procedure.
@@ -146,11 +211,6 @@ private:
     /// Main processing function
     /// </summary>
     DWORD                       MainLoop();
-
-    /// <summary>
-    /// Setup or update the Undistortion calculation for the connected camera
-    /// </summary>
-    HRESULT                     SetupUndistortion();
 
     /// <summary>
     /// Handle Coordinate Mapping changed event.
@@ -181,22 +241,10 @@ private:
     HRESULT                     RecreateVolume();
 
     /// <summary>
-    /// Copy the color data out of a Kinect image frame
-    /// </summary>
-    /// <returns>S_OK on success, otherwise failure code</returns>
-	HRESULT                     CopyColor(INT64& currentColorFrameTime, bool& colorSynchronized);
-
-    /// <summary>
     /// Get the next frames from Kinect, re-synchronizing depth with color if required.
     /// </summary>
     /// <returns>S_OK on success, otherwise failure code</returns>
     HRESULT                     GetKinectFrames(bool &integrateColor);
-
-    /// <summary>
-    /// Adjust color to the same space as depth
-    /// </summary>
-    /// <returns>S_OK on success, otherwise failure code</returns>
-    HRESULT                     MapColorToDepth();
 
     /// <summary>
     /// Handle new depth data and perform Kinect Fusion Processing.
@@ -272,12 +320,6 @@ private:
     HRESULT                     InternalResetReconstruction();
 
     /// <summary>
-    /// Copy and do depth frame undistortion.
-    /// </summary>
-    /// <returns>S_OK on success, otherwise failure code</returns>
-    HRESULT                     CopyDepth(INT64& currentDepthFrameTime);
-
-    /// <summary>
     /// Set the status bar message.
     /// </summary>
     /// <param name="szMessage">message to display</param>
@@ -314,12 +356,6 @@ private:
     Matrix4                     m_defaultWorldToVolumeTransform;
 
     /// <summary>
-    /// Frames from the depth input.
-    /// </summary>
-    UINT16*                     m_pDepthUndistortedPixelBuffer;
-    UINT16*                     m_pDepthRawPixelBuffer;
-
-    /// <summary>
     /// Kinect camera parameters.
     /// </summary>
     NUI_FUSION_CAMERA_PARAMETERS m_cameraParameters; 
@@ -336,15 +372,7 @@ private:
     /// </summary>
     NUI_FUSION_IMAGE_FRAME*     m_pColorImage;
     NUI_FUSION_IMAGE_FRAME*     m_pResampledColorImageDepthAligned;
-    ColorSpacePoint*            m_pColorCoordinates;
-    UINT16*                     m_pDepthVisibilityTestMap;
-    float                       m_colorToDepthDivisor;
-    float                       m_oneOverDepthDivisor;
-    ICoordinateMapper*          m_pMapper;
-    WAITABLE_HANDLE             m_coordinateMappingChangedEvent;
-
-	DepthSpacePoint*            m_pDepthDistortionMap;
-    UINT*                       m_pDepthDistortionLT;
+	WAITABLE_HANDLE             m_coordinateMappingChangedEvent;
 
     /// <summary>
     /// Frames generated from ray-casting the Reconstruction Volume.
