@@ -904,23 +904,11 @@ HRESULT KinectFusionProcessor::GetKinectFrames(bool &colorSynchronized)
 
     ////////////////////////////////////////////////////////
     // Get an extended depth frame from Kinect
+	hr = CopyDepth(currentDepthFrameTime);
 
-    IDepthFrame* pDepthFrame = NULL;
-
-    hr = m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
-
-    if (FAILED(hr))
-    {
-        SafeRelease(pDepthFrame);
-        SetStatusMessage(L"Kinect depth stream get frame call failed.");
-        return hr;
-    }
-
-    hr = CopyDepth(pDepthFrame);
-    pDepthFrame->get_RelativeTime(&currentDepthFrameTime);
-    currentDepthFrameTime /= 10000;
-
-    SafeRelease(pDepthFrame);
+	if (FAILED(hr)) {
+		return hr;
+	}
 
     ////////////////////////////////////////////////////////
     // Get a color frame from Kinect
@@ -928,30 +916,7 @@ HRESULT KinectFusionProcessor::GetKinectFrames(bool &colorSynchronized)
     if(m_paramsCurrent.m_bCaptureColor)
     {
         currentColorFrameTime = m_cLastColorFrameTimeStamp;
-
-        IColorFrame* pColorFrame;
-        hr = m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
-
-        if (FAILED(hr))
-        {
-            // Here we just do not integrate color rather than reporting an error
-            colorSynchronized = false;
-        }
-        else
-        {
-            if (SUCCEEDED(hr))
-            {
-                CopyColor(pColorFrame);
-            }
-
-            if (SUCCEEDED(hr))
-            {
-                hr = pColorFrame->get_RelativeTime(&currentColorFrameTime);
-                currentColorFrameTime /= 10000;
-            }
-
-            SafeRelease(pColorFrame);
-        }
+		hr = CopyColor(currentColorFrameTime, colorSynchronized);
 
         // Check color and depth frame timestamps to ensure they were captured at the same time
         // If not, we attempt to re-synchronize by getting a new frame from the stream that is behind.

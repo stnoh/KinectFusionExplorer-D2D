@@ -22,35 +22,58 @@
 /// Copy and do depth frame undistortion.
 /// </summary>
 /// <returns>S_OK on success, otherwise failure code</returns>
-HRESULT KinectFusionProcessor::CopyDepth(IDepthFrame* pDepthFrame)
+HRESULT KinectFusionProcessor::CopyDepth(INT64& currentDepthFrameTime)
 {
-    // Check the frame pointer
-    if (NULL == pDepthFrame)
-    {
-        return E_INVALIDARG;
-    }
+	// wrapping previous function by lambda
+	auto copyDepth = [&](IDepthFrame* pDepthFrame)->HRESULT {
+		// Check the frame pointer
+		if (NULL == pDepthFrame)
+		{
+			return E_INVALIDARG;
+		}
 
-    UINT nBufferSize = 0;
-    UINT16 *pBuffer = NULL;
+		UINT nBufferSize = 0;
+		UINT16 *pBuffer = NULL;
 
-    HRESULT hr = pDepthFrame->AccessUnderlyingBuffer(&nBufferSize, &pBuffer);
-    if (FAILED(hr))
-    {
-        return hr;
-    }
+		HRESULT hr = pDepthFrame->AccessUnderlyingBuffer(&nBufferSize, &pBuffer);
+		if (FAILED(hr))
+		{
+			return hr;
+		}
 
-    //copy and remap depth
-    const UINT bufferLength =  NUI_DEPTH_RAW_HEIGHT * NUI_DEPTH_RAW_WIDTH;
-    UINT16 * pDepth = m_pDepthUndistortedPixelBuffer;
-    UINT16 * pRawDepth = m_pDepthRawPixelBuffer;
-    for(UINT i = 0; i < bufferLength; i++, pDepth++, pRawDepth++)
-    {
-        const UINT id = m_pDepthDistortionLT[i];
-        *pDepth = id < bufferLength? pBuffer[id] : 0;
-        *pRawDepth = pBuffer[i];
-    }
+		//copy and remap depth
+		const UINT bufferLength =  NUI_DEPTH_RAW_HEIGHT * NUI_DEPTH_RAW_WIDTH;
+		UINT16 * pDepth = m_pDepthUndistortedPixelBuffer;
+		UINT16 * pRawDepth = m_pDepthRawPixelBuffer;
+		for(UINT i = 0; i < bufferLength; i++, pDepth++, pRawDepth++)
+		{
+			const UINT id = m_pDepthDistortionLT[i];
+			*pDepth = id < bufferLength? pBuffer[id] : 0;
+			*pRawDepth = pBuffer[i];
+		}
 
-    return S_OK;
+		return S_OK;
+	};
+
+	HRESULT hr = S_OK;
+
+	IDepthFrame* pDepthFrame = NULL;
+	hr = m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
+
+	if (FAILED(hr))
+	{
+		SafeRelease(pDepthFrame);
+		//SetStatusMessage(L"Kinect depth stream get frame call failed.");
+		return hr;
+	}
+
+	copyDepth(pDepthFrame);
+	pDepthFrame->get_RelativeTime(&currentDepthFrameTime);
+	currentDepthFrameTime /= 10000;
+
+	SafeRelease(pDepthFrame);
+
+	return S_OK;
 }
 
 /// <summary>
@@ -236,33 +259,63 @@ HRESULT KinectFusionProcessor::SetupUndistortion()
 /// </summary>
 /// <param name="imageFrame">The color image frame to copy.</param>
 /// <returns>S_OK on success, otherwise failure code</returns>
-HRESULT KinectFusionProcessor::CopyColor(IColorFrame* pColorFrame)
+HRESULT KinectFusionProcessor::CopyColor(INT64& currentColorFrameTime, bool& colorSynchronized)
 {
-    HRESULT hr = S_OK;
+	// wrapping previous function by lambda
+	auto copyColor = [&](IColorFrame* pColorFrame)->HRESULT {
+		HRESULT hr = S_OK;
 
-    if (nullptr == m_pColorImage)
-    {
-        SetStatusMessage(L"Error copying color texture pixels.");
-        return E_FAIL;
-    }
+		if (nullptr == m_pColorImage)
+		{
+			SetStatusMessage(L"Error copying color texture pixels.");
+			return E_FAIL;
+		}
 
-    NUI_FUSION_BUFFER *destColorBuffer = m_pColorImage->pFrameBuffer;
+		NUI_FUSION_BUFFER *destColorBuffer = m_pColorImage->pFrameBuffer;
 
-    if (nullptr == pColorFrame || nullptr == destColorBuffer)
-    {
-        return E_NOINTERFACE;
-    }
+		if (nullptr == pColorFrame || nullptr == destColorBuffer)
+		{
+			return E_NOINTERFACE;
+		}
 
-    // Copy the color pixels so we can return the image frame
-    hr = pColorFrame->CopyConvertedFrameDataToArray(cColorWidth * cColorHeight * sizeof(RGBQUAD), destColorBuffer->pBits, ColorImageFormat_Bgra);
+		// Copy the color pixels so we can return the image frame
+		hr = pColorFrame->CopyConvertedFrameDataToArray(cColorWidth * cColorHeight * sizeof(RGBQUAD), destColorBuffer->pBits, ColorImageFormat_Bgra);
 
-    if (FAILED(hr))
-    {
-        SetStatusMessage(L"Error copying color texture pixels.");
-        hr = E_FAIL;
-    }
+		if (FAILED(hr))
+		{
+			SetStatusMessage(L"Error copying color texture pixels.");
+			hr = E_FAIL;
+		}
 
-    return hr;
+		return hr;
+	};
+
+	HRESULT hr = S_OK;
+
+	IColorFrame* pColorFrame = NULL;
+	hr = m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
+
+	if (FAILED(hr))
+	{
+		// Here we just do not integrate color rather than reporting an error
+		colorSynchronized = false;
+	}
+	else
+	{
+		if (SUCCEEDED(hr))
+		{
+			copyColor(pColorFrame);
+		}
+
+		if (SUCCEEDED(hr))
+		{
+			hr = pColorFrame->get_RelativeTime(&currentColorFrameTime);
+			currentColorFrameTime /= 10000;
+		}
+	}
+	SafeRelease(pColorFrame);
+
+	return S_OK;
 }
 
 /// <summary>

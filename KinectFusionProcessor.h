@@ -184,7 +184,7 @@ private:
     /// Copy the color data out of a Kinect image frame
     /// </summary>
     /// <returns>S_OK on success, otherwise failure code</returns>
-	HRESULT                     CopyColor(IColorFrame* pColorFrame);
+	HRESULT                     CopyColor(INT64& currentColorFrameTime, bool& colorSynchronized);
 
     /// <summary>
     /// Get the next frames from Kinect, re-synchronizing depth with color if required.
@@ -275,7 +275,7 @@ private:
     /// Copy and do depth frame undistortion.
     /// </summary>
     /// <returns>S_OK on success, otherwise failure code</returns>
-    HRESULT                     CopyDepth(IDepthFrame* pDepthFrame);
+    HRESULT                     CopyDepth(INT64& currentDepthFrameTime);
 
     /// <summary>
     /// Set the status bar message.
