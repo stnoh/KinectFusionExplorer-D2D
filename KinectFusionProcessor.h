@@ -201,7 +201,7 @@ private:
     /// <summary>
     /// Handle new depth data and perform Kinect Fusion Processing.
     /// </summary>
-    bool                        ProcessDepth();
+    bool                        IntegrateSingleFrame();
 
     /// <summary>
     /// Perform camera tracking using AlignDepthFloatToReconstruction
@@ -275,8 +275,7 @@ private:
     /// Copy and do depth frame undistortion.
     /// </summary>
     /// <returns>S_OK on success, otherwise failure code</returns>
-    HRESULT                     CopyDepth(
-                                    IDepthFrame* pDepthFrame);
+    HRESULT                     CopyDepth(IDepthFrame* pDepthFrame);
 
     /// <summary>
     /// Set the status bar message.
