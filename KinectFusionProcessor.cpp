@@ -25,6 +25,8 @@
 #define AssertOtherThread() \
     _ASSERT_EXPR(GetCurrentThreadId() != m_threadId, __FUNCTIONW__ L" called on wrong thread!");
 
+#define CHECK_FAILED(hr) if(FAILED(hr)){ return hr; }
+
 /// <summary>
 /// Constructor
 /// </summary>
@@ -380,20 +382,6 @@ HRESULT KinectFusionProcessor::UnlockFrame()
     return S_OK;
 }
 
-void UpdateIntrinsics(NUI_FUSION_IMAGE_FRAME * pImageFrame, NUI_FUSION_CAMERA_PARAMETERS * params)
-{
-    if (pImageFrame != nullptr && pImageFrame->pCameraParameters != nullptr && params != nullptr)
-    {
-        pImageFrame->pCameraParameters->focalLengthX = params->focalLengthX;
-        pImageFrame->pCameraParameters->focalLengthY = params->focalLengthY;
-        pImageFrame->pCameraParameters->principalPointX = params->principalPointX;
-        pImageFrame->pCameraParameters->principalPointY = params->principalPointY;
-    }
-
-    // Confirm we are called correctly
-    _ASSERT(pImageFrame != nullptr && pImageFrame->pCameraParameters != nullptr && params != nullptr);
-}
-
 /// <summary>
 /// Handle Coordinate Mapping changed event.
 /// Note, this happens after sensor connect, or when Kinect Studio connects
@@ -425,6 +413,21 @@ HRESULT KinectFusionProcessor::OnCoordinateMappingChanged()
     m_cameraParameters.principalPointY = principalPointY;
 
     _ASSERT(m_cameraParameters.focalLengthX != 0);
+
+	// hide by lambda function
+	auto UpdateIntrinsics = [](NUI_FUSION_IMAGE_FRAME * pImageFrame, NUI_FUSION_CAMERA_PARAMETERS * params)->void
+	{
+		if (pImageFrame != nullptr && pImageFrame->pCameraParameters != nullptr && params != nullptr)
+		{
+			pImageFrame->pCameraParameters->focalLengthX = params->focalLengthX;
+			pImageFrame->pCameraParameters->focalLengthY = params->focalLengthY;
+			pImageFrame->pCameraParameters->principalPointX = params->principalPointX;
+			pImageFrame->pCameraParameters->principalPointY = params->principalPointY;
+		}
+
+		// Confirm we are called correctly
+		_ASSERT(pImageFrame != nullptr && pImageFrame->pCameraParameters != nullptr && params != nullptr);
+	};
 
     UpdateIntrinsics(m_pDepthFloatImage, &m_cameraParameters);
     UpdateIntrinsics(m_pDownsampledDepthFloatImage, &m_cameraParameters);
@@ -545,116 +548,62 @@ HRESULT KinectFusionProcessor::InitializeKinectFusion()
     const UINT downsampledWidth  = width  / m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
     const UINT downsampledHeight = height / m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
 
-    // Frame generated from the depth input
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pDepthFloatImage)))
-    {
-        return hr;
-    }
+	// Frame generated from the depth input
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pDepthFloatImage));
 
-    // Frames generated from the depth input
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, downsampledWidth, downsampledHeight, &m_pDownsampledDepthFloatImage)))
-    {
-        return hr;
-    }
+	// Frames generated from the depth input
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, downsampledWidth, downsampledHeight, &m_pDownsampledDepthFloatImage));
 
-    // Frame generated from the raw color input of Kinect
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, colorWidth, colorHeight, &m_pColorImage)))
-    {
-        return hr;
-    }
+	// Frame generated from the raw color input of Kinect
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, colorWidth, colorHeight, &m_pColorImage));
 
-    // Frame generated from the raw color input of Kinect for use in the camera pose finder.
-    // Note color will be down-sampled to the depth size if depth and color capture resolutions differ.
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pResampledColorImage)))
-    {
-        return hr;
-    }
+	// Frame generated from the raw color input of Kinect for use in the camera pose finder.
+	// Note color will be down-sampled to the depth size if depth and color capture resolutions differ.
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pResampledColorImage));
 
-    // Frame re-sampled from the color input of Kinect, aligned to depth - this will be the same size as the depth.
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pResampledColorImageDepthAligned)))
-    {
-        return hr;
-    }
+	// Frame re-sampled from the color input of Kinect, aligned to depth - this will be the same size as the depth.
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pResampledColorImageDepthAligned));
 
-    // Point Cloud generated from ray-casting the volume
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, width, height, &m_pRaycastPointCloud)))
-    {
-        return hr;
-    }
+	// Point Cloud generated from ray-casting the volume
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, width, height, &m_pRaycastPointCloud));
 
-    // Point Cloud generated from ray-casting the volume
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, downsampledWidth, downsampledHeight, &m_pDownsampledRaycastPointCloud)))
-    {
-        return hr;
-    }
+	// Point Cloud generated from ray-casting the volume
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, downsampledWidth, downsampledHeight, &m_pDownsampledRaycastPointCloud));
 
-    // Depth frame generated from ray-casting the volume
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pRaycastDepthFloatImage)))
-    {
-        return hr;
-    }
+	// Depth frame generated from ray-casting the volume
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pRaycastDepthFloatImage));
 
-    // Image of the raycast Volume to display
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pShadedSurface)))
-    {
-        return hr;
-    }
+	// Image of the raycast Volume to display
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pShadedSurface));
 
-    // Image of the raycast Volume with surface normals to display
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height,  &m_pShadedSurfaceNormals)))
-    {
-        return hr;
-    }
+	// Image of the raycast Volume with surface normals to display
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pShadedSurfaceNormals));
 
-    // Image of the raycast Volume with the captured color to display
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pCapturedSurfaceColor)))
-    {
-        return hr;
-    }
+	// Image of the raycast Volume with the captured color to display
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pCapturedSurfaceColor));
 
-    // Image of the camera tracking deltas to display
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pFloatDeltaFromReference)))
-    {
-        return hr;
-    }
+	// Image of the camera tracking deltas to display
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pFloatDeltaFromReference));
 
-    // Image of the camera tracking deltas to display
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pShadedDeltaFromReference)))
-    {
-        return hr;
-    }
+	// Image of the camera tracking deltas to display
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, width, height, &m_pShadedDeltaFromReference));
 
-    // Image of the camera tracking deltas to display
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, downsampledWidth, downsampledHeight, &m_pDownsampledShadedDeltaFromReference)))
-    {
-        return hr;
-    }
+	// Image of the camera tracking deltas to display
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_COLOR, downsampledWidth, downsampledHeight, &m_pDownsampledShadedDeltaFromReference));
 
-    // Image from input depth for use with AlignPointClouds call
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pSmoothDepthFloatImage)))
-    {
-        return hr;
-    }
+	// Image from input depth for use with AlignPointClouds call
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, width, height, &m_pSmoothDepthFloatImage));
 
-    // Frames generated from smoothing the depth input
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, downsampledWidth, downsampledHeight, &m_pDownsampledSmoothDepthFloatImage)))
-    {
-        return hr;
-    }
+	// Frames generated from smoothing the depth input
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_FLOAT, downsampledWidth, downsampledHeight, &m_pDownsampledSmoothDepthFloatImage));
 
-    // Image used in post pose finding success check AlignPointClouds call
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, width, height, &m_pDepthPointCloud)))
-    {
-        return hr;
-    }
+	// Image used in post pose finding success check AlignPointClouds call
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, width, height, &m_pDepthPointCloud));
 
-    // Point Cloud generated from depth input, in local camera coordinate system
-    if (FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, downsampledWidth, downsampledHeight, &m_pDownsampledDepthPointCloud)))
-    {
-        return hr;
-    }
+	// Point Cloud generated from depth input, in local camera coordinate system
+	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, downsampledWidth, downsampledHeight, &m_pDownsampledDepthPointCloud));
 
-	// 
+	// image buffers with default types: handled by sensor object
 	if (FAILED(hr = m_pSensor.InitializeBuffers(m_paramsCurrent)))
 	{
 		return E_OUTOFMEMORY;
@@ -669,19 +618,19 @@ HRESULT KinectFusionProcessor::InitializeKinectFusion()
     SafeRelease(m_pCameraPoseFinder);
 
     // Create the camera pose finder if necessary
-        NUI_FUSION_CAMERA_POSE_FINDER_PARAMETERS cameraPoseFinderParameters;
+    NUI_FUSION_CAMERA_POSE_FINDER_PARAMETERS cameraPoseFinderParameters;
 
-        cameraPoseFinderParameters.featureSampleLocationsPerFrameCount = m_paramsCurrent.m_cCameraPoseFinderFeatureSampleLocationsPerFrame;
-        cameraPoseFinderParameters.maxPoseHistoryCount = m_paramsCurrent.m_cMaxCameraPoseFinderPoseHistory;
-        cameraPoseFinderParameters.maxDepthThreshold = m_paramsCurrent.m_fMaxCameraPoseFinderDepthThreshold;
+    cameraPoseFinderParameters.featureSampleLocationsPerFrameCount = m_paramsCurrent.m_cCameraPoseFinderFeatureSampleLocationsPerFrame;
+    cameraPoseFinderParameters.maxPoseHistoryCount = m_paramsCurrent.m_cMaxCameraPoseFinderPoseHistory;
+    cameraPoseFinderParameters.maxDepthThreshold = m_paramsCurrent.m_fMaxCameraPoseFinderDepthThreshold;
 
-        if (FAILED(hr = NuiFusionCreateCameraPoseFinder(
-            &cameraPoseFinderParameters,
-            nullptr,
-            &m_pCameraPoseFinder)))
-        {
-            return hr;
-        }
+    if (FAILED(hr = NuiFusionCreateCameraPoseFinder(
+        &cameraPoseFinderParameters,
+        nullptr,
+        &m_pCameraPoseFinder)))
+    {
+        return hr;
+    }
     
     m_bKinectFusionInitialized = true;
     return hr;

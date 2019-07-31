@@ -523,7 +523,7 @@ HRESULT KinectFusionProcessorSensor::InitializeBuffers(KinectFusionParams m_para
 
 	if (nullptr == m_pDepthUndistortedPixelBuffer)
 	{
-		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth image pixel buffer.");
+		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth image pixel buffer."); // no message box in this context ...
 		return E_OUTOFMEMORY;
 	}
 
@@ -532,7 +532,7 @@ HRESULT KinectFusionProcessorSensor::InitializeBuffers(KinectFusionParams m_para
 
 	if (nullptr == m_pDepthRawPixelBuffer)
 	{
-		//SetStatusMessage(L"Failed to initialize Kinect Fusion raw depth image pixel buffer.");
+		//SetStatusMessage(L"Failed to initialize Kinect Fusion raw depth image pixel buffer."); // no message box in this context ...
 		return E_OUTOFMEMORY;
 	}
 
@@ -543,7 +543,7 @@ HRESULT KinectFusionProcessorSensor::InitializeBuffers(KinectFusionParams m_para
 
 	if (nullptr == m_pColorCoordinates)
 	{
-		//SetStatusMessage(L"Failed to initialize Kinect Fusion color image coordinate buffer.");
+		//SetStatusMessage(L"Failed to initialize Kinect Fusion color image coordinate buffer."); // no message box in this context ...
 		return E_OUTOFMEMORY;
 	}
 
@@ -554,7 +554,7 @@ HRESULT KinectFusionProcessorSensor::InitializeBuffers(KinectFusionParams m_para
 
 	if (nullptr == m_pDepthVisibilityTestMap)
 	{
-		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth points visibility test buffer.");
+		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth points visibility test buffer."); // no message box in this context ...
 		return E_OUTOFMEMORY;
 	}
 
@@ -563,7 +563,7 @@ HRESULT KinectFusionProcessorSensor::InitializeBuffers(KinectFusionParams m_para
 
 	if (nullptr == m_pDepthDistortionMap)
 	{
-		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth image distortion buffer.");
+		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth image distortion buffer."); // no message box in this context ...
 		return E_OUTOFMEMORY;
 	}
 
@@ -572,7 +572,7 @@ HRESULT KinectFusionProcessorSensor::InitializeBuffers(KinectFusionParams m_para
 
 	if (nullptr == m_pDepthDistortionLT)
 	{
-		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth image distortion Lookup Table.");
+		//SetStatusMessage(L"Failed to initialize Kinect Fusion depth image distortion Lookup Table."); // no message box in this context ...
 		return E_OUTOFMEMORY;
 	}
 
