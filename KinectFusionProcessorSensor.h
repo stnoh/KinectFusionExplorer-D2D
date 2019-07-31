@@ -45,6 +45,8 @@ public:
 	IDepthFrameReader*          m_pDepthFrameReader;
 	IColorFrameReader*          m_pColorFrameReader;
 
+	ICoordinateMapper*          m_pMapper;
+
 	/// <summary>
 	/// Setup or update the Undistortion calculation for the connected camera
 	/// </summary>
@@ -67,7 +69,17 @@ public:
 	/// </summary>
 	/// <returns>S_OK on success, otherwise failure code</returns>
 	HRESULT                     MapColorToDepth(const NUI_FUSION_IMAGE_FRAME* m_pColorImage, NUI_FUSION_IMAGE_FRAME* m_pResampledColorImageDepthAligned, KinectFusionParams m_paramsCurrent);
+	
+	HRESULT                     InitializeBuffers(KinectFusionParams m_paramsCurrent);
 
+	const UINT16* pDepthUndistortedPixelBuffer() { return m_pDepthUndistortedPixelBuffer; }
+	const UINT16* pDepthRawPixelBuffer()         { return m_pDepthRawPixelBuffer; }
+	const ColorSpacePoint* pColorCoordinates()   { return m_pColorCoordinates; }
+	const UINT16* pDepthVisibilityTestMap()      { return m_pDepthVisibilityTestMap; }
+	const DepthSpacePoint* pDepthDistortionMap() { return m_pDepthDistortionMap; }
+	const UINT* pDepthDistortionLT()             { return m_pDepthDistortionLT; }
+
+private:
 	/// <summary>
 	/// Frames from the depth input.
 	/// </summary>
@@ -79,8 +91,8 @@ public:
 	/// </summary>
 	ColorSpacePoint*            m_pColorCoordinates;
 	UINT16*                     m_pDepthVisibilityTestMap;
-	ICoordinateMapper*          m_pMapper;
 
 	DepthSpacePoint*            m_pDepthDistortionMap;
 	UINT*                       m_pDepthDistortionLT;
+
 };

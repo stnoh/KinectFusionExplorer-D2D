@@ -32,9 +32,6 @@ class KinectFusionProcessor
 
 public:
 
-	// [TEMPORARY] facade class for Kinect, not related to KinectFusion core algorithm
-	KinectFusionProcessorSensor *m_pSensor;
-
     /// <summary>
     /// Constructor
     /// </summary>
@@ -114,6 +111,8 @@ private:
 
     HANDLE                      m_hThread;
     DWORD                       m_threadId;
+
+	KinectFusionProcessorSensor m_pSensor; // facade class for Kinect as RAII object
 
     LONGLONG                    m_cLastDepthFrameTimeStamp;
     LONGLONG                    m_cLastColorFrameTimeStamp;
