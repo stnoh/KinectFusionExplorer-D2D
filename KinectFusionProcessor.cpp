@@ -484,6 +484,7 @@ HRESULT KinectFusionProcessor::OnCoordinateMappingChanged()
 	////////////////////////////////////////////////////////////
 	// [TODO ABOVE] tricky implementation !
 	////////////////////////////////////////////////////////////
+
 	const UINT width  = m_paramsCurrent.m_cDepthWidth;
 	const UINT height = m_paramsCurrent.m_cDepthHeight;
 
@@ -540,15 +541,15 @@ HRESULT KinectFusionProcessor::InitializeKinectFusion()
         return hr;
     }
 
-    const UINT width = m_paramsCurrent.m_cDepthWidth;
+    const UINT width  = m_paramsCurrent.m_cDepthWidth;
     const UINT height = m_paramsCurrent.m_cDepthHeight;
     const UINT depthBufferSize = width * height;
 
-    const UINT colorWidth = m_paramsCurrent.m_cColorWidth;
+    const UINT colorWidth  = m_paramsCurrent.m_cColorWidth;
     const UINT colorHeight = m_paramsCurrent.m_cColorHeight;
 
     // Calculate the down sampled image sizes, which are used for the AlignPointClouds calculation frames
-    const UINT downsampledWidth = width / m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
+    const UINT downsampledWidth  = width  / m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
     const UINT downsampledHeight = height / m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
 
     // Frame generated from the depth input
@@ -691,6 +692,8 @@ HRESULT KinectFusionProcessor::InitializeKinectFusion()
 	    SetStatusMessage(L"Failed to initialize Kinect Fusion color image coordinate buffer.");
 		return E_OUTOFMEMORY;
     }
+
+	int cVisibilityTestQuantShift = m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
 
     SAFE_DELETE_ARRAY(m_pSensor->m_pDepthVisibilityTestMap);
 	m_pSensor->m_pDepthVisibilityTestMap = new(std::nothrow) UINT16[(colorWidth >> cVisibilityTestQuantShift) * (colorHeight >> cVisibilityTestQuantShift)];

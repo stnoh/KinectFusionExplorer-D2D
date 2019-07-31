@@ -1,8 +1,7 @@
 ﻿//------------------------------------------------------------------------------
-// [TEMPORARY] This code is separated from original "KinectFusionProcessor.cpp"
-// <copyright file="KinectFusionProcessor.cpp" company="Microsoft">
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
-// </copyright>
+// This code is separated from original "KinectFusionProcessor.cpp"
+// It only handles to copy color/depth images and undistort depth image.
+// modified by Seung-Tak Noh (seungtak.noh@gmail.com)
 //------------------------------------------------------------------------------
 
 // System includes
@@ -16,7 +15,7 @@
 #pragma warning(pop)
 
 // Project includes
-#include "KinectFusionProcessor.h"
+#include "KinectFusionProcessorSensor.h"
 
 /// <summary>
 /// Copy and do depth frame undistortion.
@@ -81,8 +80,6 @@ HRESULT KinectFusionProcessorSensor::CopyDepth(INT64& currentDepthFrameTime)
 /// </summary>
 void KinectFusionProcessorSensor::ShutdownSensor()
 {
-	//AssertOwnThread(); // commented out due to scope problem
-
 	// Clean up Kinect
 	if (m_pNuiSensor != nullptr)
 	{
@@ -128,12 +125,6 @@ HRESULT KinectFusionProcessorSensor::InitializeDefaultSensor()
 			hr = m_pNuiSensor->get_CoordinateMapper(&m_pMapper);
 		}
 
-		// [CAUTION] it is subscribed outside of this scope.
-		//if (SUCCEEDED(hr))
-		//{
-		//	hr = m_pMapper->SubscribeCoordinateMappingChanged(&m_coordinateMappingChangedEvent);
-		//}
-
 		if (SUCCEEDED(hr))
 		{
 			hr = m_pNuiSensor->get_ColorFrameSource(&pColorFrameSource);
@@ -143,12 +134,6 @@ HRESULT KinectFusionProcessorSensor::InitializeDefaultSensor()
 		{
 			hr = pColorFrameSource->OpenReader(&m_pColorFrameReader);
 		}
-
-		// initialize KinectFusion algorithm (separated from sensor init)
-		//if (SUCCEEDED(InitializeKinectFusion()))
-		//{
-		//	m_bKinectFusionInitialized = true;
-		//}
 
 		SafeRelease(pDepthFrameSource);
 		SafeRelease(pColorFrameSource);
@@ -168,8 +153,6 @@ HRESULT KinectFusionProcessorSensor::InitializeDefaultSensor()
 /// </summary>
 HRESULT KinectFusionProcessorSensor::SetupUndistortion(NUI_FUSION_CAMERA_PARAMETERS m_cameraParameters, UINT width, UINT height, bool& m_bHaveValidCameraParameters)
 {
-    //AssertOwnThread(); // commented out due to scope problem
-
     HRESULT hr = E_UNEXPECTED;
 
     if (m_cameraParameters.principalPointX != 0)
@@ -362,6 +345,8 @@ HRESULT KinectFusionProcessorSensor::MapColorToDepth(const NUI_FUSION_IMAGE_FRAM
     {
         return hr;
     }
+
+	int cVisibilityTestQuantShift = m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
 
     // construct dense depth points visibility test map so we can test for depth points that are invisible in color space
     const UINT16* const pDepthEnd = m_pDepthRawPixelBuffer + NUI_DEPTH_RAW_WIDTH * NUI_DEPTH_RAW_HEIGHT;
