@@ -1,5 +1,12 @@
 # KinectFusionExplorer-D2D
 This is the modified version of **"KinectFusionExplorer-D2D"** in Kinect v2 SDK sample code.  
+Now I modify this repository as a **submodule of [cvgl](https://github.com/stnoh/cvgl)**. If you have an interest as a standalone project, then checkout the "standalone" tag.  
+
+
+## Previous changes
+
+## from sample code to standalolne
+
 Here are the list of major modifications from original code.  
 
 - CMake-based build chain  
