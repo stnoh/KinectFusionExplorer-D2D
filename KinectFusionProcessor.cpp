@@ -17,6 +17,7 @@
 // Project includes
 #include "KinectFusionProcessor.h"
 #include "KinectFusionHelper.h"
+#include "KinectFusionHelperEx.h"
 #include "resource.h"
 
 #define AssertOwnThread() \
@@ -301,6 +302,12 @@ DWORD KinectFusionProcessor::MainLoop()
                         SetStatusMessage(L"Failed to reset reconstruction.");
                     }
                 }
+
+				// import loaded data to GPU
+				if (m_internal_load) {
+					InternalLoad();
+					m_internal_load = false;
+				}
 
                 bool processSucceed = IntegrateSingleFrame();
 
@@ -2154,3 +2161,110 @@ void KinectFusionProcessor::NotifyEmptyFrame()
     NotifyFrameReady();
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+// load/save voxel data in XML format by using KinectFusionHelperEx
+///////////////////////////////////////////////////////////////////////////////
+HRESULT KinectFusionProcessor::Load(const std::string& filename)
+{
+	AssertOtherThread();
+
+	if (m_pVolume == nullptr) return E_FAIL;
+
+	KinfuData kinfuData;
+	if (!LoadXML(filename.c_str(), kinfuData)) return E_FAIL;
+
+	// append camera/volume transform
+	_worldToCameraTransform = kinfuData.worldToCameraTransform;
+	_worldToVolumeTransform = kinfuData.worldToVolumeTransform;
+
+	m_paramsNext.m_reconstructionParams = kinfuData.reconsParams;
+
+	_volumeBlock = std::vector<short>(kinfuData.volumeBlock);
+	_colorVolumeBlock = std::vector<int>(kinfuData.colorVolumeBlock);
+
+	m_internal_load = true;
+
+	return S_OK;
+}
+void KinectFusionProcessor::InternalLoad()
+{
+	AssertOwnThread();
+
+	int voX = m_paramsCurrent.m_reconstructionParams.voxelCountX;
+	int voY = m_paramsCurrent.m_reconstructionParams.voxelCountY;
+	int voZ = m_paramsCurrent.m_reconstructionParams.voxelCountZ;
+	unsigned int voxelArea_temp = voX * voY * voZ;
+
+	HRESULT hr = m_pVolume->ImportVolumeBlock(voxelArea_temp * sizeof(short),
+		voxelArea_temp * sizeof(int),
+		&_volumeBlock[0],
+		&_colorVolumeBlock[0]);
+
+	// append camera/volume transform
+	m_worldToCameraTransform        = _worldToCameraTransform;
+	m_defaultWorldToVolumeTransform = _worldToVolumeTransform; // [CAUTION!]
+
+	if (FAILED(hr))
+	{
+		fprintf(stderr, "ERROR: cannot import volume data ...\n");
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		ResetTracking();
+
+		// Set the frame counter to 0 to prevent a reset reconstruction call due to large frame 
+		// timestamp change after meshing. Also reset frame time for fps counter.
+		m_cFrameCounter = 0; // prevent to integrate frame ...
+		m_cFPSFrameCounter = 0;
+		m_fFrameCounterStartTime = m_timer.AbsoluteTime();
+
+		// clear temporary volume data
+		_volumeBlock.clear();
+		_colorVolumeBlock.clear();
+	}
+}
+
+HRESULT KinectFusionProcessor::Save(const std::string& filename)
+{
+	AssertOtherThread();
+
+	EnterCriticalSection(&m_lockVolume);
+
+	HRESULT hr = E_FAIL;
+
+	if (m_pVolume != nullptr)
+	{
+		int voX = m_paramsCurrent.m_reconstructionParams.voxelCountX;
+		int voY = m_paramsCurrent.m_reconstructionParams.voxelCountY;
+		int voZ = m_paramsCurrent.m_reconstructionParams.voxelCountZ;
+		unsigned int voxelArea = voX * voY * voZ;
+
+		KinfuData kinfuData;
+		kinfuData.worldToCameraTransform = m_worldToCameraTransform;
+		kinfuData.worldToVolumeTransform = m_defaultWorldToVolumeTransform; // [CAUTION!]
+
+		kinfuData.reconsParams = m_paramsCurrent.m_reconstructionParams;
+
+		kinfuData.volumeBlock = std::vector<short>(voxelArea);
+		kinfuData.colorVolumeBlock = std::vector<int>(voxelArea);
+		hr = m_pVolume->ExportVolumeBlock(0, 0, 0, voX, voY, voZ, 1,
+			voxelArea * sizeof(short),
+			voxelArea * sizeof(int),
+			&kinfuData.volumeBlock[0],
+			&kinfuData.colorVolumeBlock[0]);
+
+		SaveXML(filename.c_str(), kinfuData);
+
+		// Set the frame counter to 0 to prevent a reset reconstruction call due to large frame 
+		// timestamp change after meshing. Also reset frame time for fps counter.
+		m_cFrameCounter = 0;
+		m_cFPSFrameCounter = 0;
+		m_fFrameCounterStartTime = m_timer.AbsoluteTime();
+	}
+
+	LeaveCriticalSection(&m_lockVolume);
+
+	return hr;
+}

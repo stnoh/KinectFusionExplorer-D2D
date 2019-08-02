@@ -339,4 +339,21 @@ private:
     Timing::Timer               m_timer;
     double                      m_fFrameCounterStartTime;
     double                      m_fMostRecentRaycastTime;
+
+	////////////////////////////////////////////////////////////
+	// additional members to use KinectFusionHelperEx
+	////////////////////////////////////////////////////////////
+public:
+	HRESULT Load(const std::string& filename);
+	HRESULT Save(const std::string& filename);
+
+private:
+	void InternalLoad();
+
+	bool m_internal_load = false;
+
+	Matrix4 _worldToCameraTransform;
+	Matrix4 _worldToVolumeTransform;
+	std::vector<short> _volumeBlock;
+	std::vector<int>   _colorVolumeBlock;
 };
