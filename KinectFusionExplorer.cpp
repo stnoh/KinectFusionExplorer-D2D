@@ -6,6 +6,7 @@
 
 // System includes
 #include "stdafx.h"
+#include <codecvt>
 
 // Project includes
 #include "resource.h"
@@ -32,6 +33,14 @@
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int nCmdShow)
 {
     CKinectFusionExplorer application;
+	
+	// console for printf-based debugging...
+	/*
+	AllocConsole();
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
+	//*/
+
     application.Run(hInstance, nCmdShow);
 }
 
@@ -45,7 +54,7 @@ m_hWnd(nullptr),
     m_pDrawTrackingResiduals(nullptr),
     m_pDrawDepth(nullptr),
     m_bSavingMesh(false),
-    m_saveMeshFormat(Stl),
+    m_saveMeshFormat(Load),
     m_bInitializeError(false),
     m_bColorCaptured(false),
     m_bUIUpdated(false)
@@ -333,19 +342,22 @@ void CKinectFusionExplorer::HandleCompletedFrame()
 /// </summary>
 /// <param name="mesh">The mesh to save.</param>
 /// <returns>indicates success or failure</returns>
-HRESULT CKinectFusionExplorer::SaveMeshFile(INuiFusionColorMesh* pMesh, KinectFusionMeshTypes saveMeshType)
+HRESULT CKinectFusionExplorer::SaveLoadVolume(KinectFusionMeshTypes saveMeshType)
 {
     HRESULT hr = S_OK;
 
-    if (nullptr == pMesh)
-    {
-        return E_INVALIDARG;
-    }
+    //if (nullptr == pMesh)
+    //{
+    //    return E_INVALIDARG;
+    //}
 
-    CComPtr<IFileSaveDialog> pSaveDlg;
+    CComPtr<IFileDialog> pFileDlg;
 
-    // Create the file save dialog object.
-    hr = pSaveDlg.CoCreateInstance(__uuidof(FileSaveDialog));
+    // Create the file open/save dialog object.
+	switch (saveMeshType) {
+	case Load: hr = pFileDlg.CoCreateInstance(__uuidof(FileOpenDialog)); break;
+	default:   hr = pFileDlg.CoCreateInstance(__uuidof(FileSaveDialog)); break;
+	}
 
     if (FAILED(hr))
     {
@@ -353,113 +365,107 @@ HRESULT CKinectFusionExplorer::SaveMeshFile(INuiFusionColorMesh* pMesh, KinectFu
     }
 
     // Set the dialog title
-    hr = pSaveDlg->SetTitle(L"Save Kinect Fusion Mesh");
+	switch (saveMeshType) {
+	case Load: hr = pFileDlg->SetTitle(L"Load Kinect Fusion volume data"); break;
+	case Save: hr = pFileDlg->SetTitle(L"Save Kinect Fusion volume data"); break;
+	default:   hr = pFileDlg->SetTitle(L"Save Kinect Fusion Mesh"); break;
+	}
+
     if (SUCCEEDED(hr))
     {
         // Set the button text
-        hr = pSaveDlg->SetOkButtonLabel (L"Save");
+		switch (saveMeshType) {
+		case Load: hr = pFileDlg->SetOkButtonLabel(L"Load"); break;
+		default:   hr = pFileDlg->SetOkButtonLabel(L"Save"); break;
+		}
+
         if (SUCCEEDED(hr))
         {
             // Set a default filename
-            if (Stl == saveMeshType)
-            {
-                hr = pSaveDlg->SetFileName(L"MeshedReconstruction.stl");
-            }
-            else if (Obj == saveMeshType)
-            {
-                hr = pSaveDlg->SetFileName(L"MeshedReconstruction.obj");
-            }
-            else if (Ply == saveMeshType)
-            {
-                hr = pSaveDlg->SetFileName(L"MeshedReconstruction.ply");
-            }
+			std::wstring filename;
+			
+			switch (saveMeshType) {
+			case Load: case Save: filename = L"VolumeReconstruction.xml"; break;
+			case Ply: filename = L"MeshedReconstruction.ply"; break;
+			default: SetStatusMessage(L"ERROR: invalid filename ...\n"); break;
+			}
+
+			hr = pFileDlg->SetFileName(filename.c_str());
 
             if (SUCCEEDED(hr))
             {
                 // Set the file type extension
-                if (Stl == saveMeshType)
-                {
-                    hr = pSaveDlg->SetDefaultExtension(L"stl");
-                }
-                else if (Obj == saveMeshType)
-                {
-                    hr = pSaveDlg->SetDefaultExtension(L"obj");
-                }
-                else if (Ply == saveMeshType)
-                {
-                    hr = pSaveDlg->SetDefaultExtension(L"ply");
-                }
+				std::wstring ext;
+
+				switch (saveMeshType) {
+				case Load: case Save: ext = L"xml"; break;
+				case Ply: ext = L"ply"; break;
+				default: SetStatusMessage(L"ERROR: invalid extension ...\n"); break;
+				}
+
+				hr = pFileDlg->SetDefaultExtension(ext.c_str());
 
                 if (SUCCEEDED(hr))
                 {
                     // Set the file type filters
-                    if (Stl == saveMeshType)
-                    {
-                        COMDLG_FILTERSPEC allPossibleFileTypes[] = {
-                            { L"Stl mesh files", L"*.stl" },
-                            { L"All files", L"*.*" }
-                        };
+					COMDLG_FILTERSPEC allPossibleFileTypes[2];
+					allPossibleFileTypes[1] = { L"All files", L"*.*" };
 
-                        hr = pSaveDlg->SetFileTypes(
-                            ARRAYSIZE(allPossibleFileTypes),
-                            allPossibleFileTypes);
-                    }
-                    else if (Obj == saveMeshType)
-                    {
-                        COMDLG_FILTERSPEC allPossibleFileTypes[] = {
-                            { L"Obj mesh files", L"*.obj" },
-                            { L"All files", L"*.*" }
-                        };
+					switch (saveMeshType) {
+					case Load: case Save: allPossibleFileTypes[0] = { L"XML files", L"*.xml" }; break;
+					case Ply: allPossibleFileTypes[0] = { L"Ply mesh files", L"*.ply" }; break;
+					default: SetStatusMessage(L"ERROR: invalid filetype ...\n"); break;
+					}
 
-                        hr = pSaveDlg->SetFileTypes(
+					hr = pFileDlg->SetFileTypes(
                             ARRAYSIZE(allPossibleFileTypes),
                             allPossibleFileTypes );
-                    }
-                    else if (Ply == saveMeshType)
-                    {
-                        COMDLG_FILTERSPEC allPossibleFileTypes[] = {
-                            { L"Ply mesh files", L"*.ply" },
-                            { L"All files", L"*.*" }
-                        };
-
-                        hr = pSaveDlg->SetFileTypes(
-                            ARRAYSIZE(allPossibleFileTypes),
-                            allPossibleFileTypes );
-                    }
 
                     if (SUCCEEDED(hr))
                     {
                         // Show the file selection box
-                        hr = pSaveDlg->Show(m_hWnd);
+                        hr = pFileDlg->Show(m_hWnd);
 
                         // Save the mesh to the chosen file.
                         if (SUCCEEDED(hr))
                         {
                             CComPtr<IShellItem> pItem;
-                            hr = pSaveDlg->GetResult(&pItem);
+                            hr = pFileDlg->GetResult(&pItem);
 
                             if (SUCCEEDED(hr))
                             {
                                 LPOLESTR pwsz = nullptr;
                                 hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pwsz);
 
+								// volume: new routine
+								if (Load == saveMeshType || Save == saveMeshType) {
+									std::string filename = std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(pwsz); // [TEMPORARY]
+									if (Load == saveMeshType) m_processor.Load(filename);
+									if (Save == saveMeshType) m_processor.Save(filename);
+									return S_OK;
+								}
+
+								// mesh: existing "CalculateMesh()" routine
                                 if (SUCCEEDED(hr))
                                 {
+									INuiFusionColorMesh *pMesh = nullptr;
+									HRESULT hr = m_processor.CalculateMesh(&pMesh);
+
+									if (nullptr == pMesh)
+									{
+										return E_INVALIDARG;
+									}
+
                                     SetStatusMessage(L"Saving mesh file, please wait...");
                                     SetCursor(LoadCursor(nullptr, MAKEINTRESOURCE(IDC_WAIT)));
 
-                                    if (Stl == saveMeshType)
-                                    {
-                                        hr = WriteBinarySTLMeshFile(pMesh, pwsz);
-                                    }
-                                    else if (Obj == saveMeshType)
-                                    {
-                                        hr = WriteAsciiObjMeshFile(pMesh, pwsz);
-                                    }
-                                    else if (Ply == saveMeshType)
-                                    {
-                                        hr = WriteAsciiPlyMeshFile(pMesh, pwsz, true, m_bColorCaptured);
-                                    }
+									switch (saveMeshType) {
+									case Ply: hr = WriteAsciiPlyMeshFile(pMesh, pwsz, true, m_bColorCaptured); break;
+									default: SetStatusMessage(L"ERROR: invalid write mesh file ...\n"); break;
+									}
+
+									// Release the mesh
+									SafeRelease(pMesh);
 
                                     CoTaskMemFree(pwsz);
                                 }
@@ -645,6 +651,8 @@ void CKinectFusionExplorer::InitializeUIControls()
         break;
     }
 
+	// unused format (stl, obj)
+	/*
     if (Stl == m_saveMeshFormat)
     {
         CheckDlgButton(m_hWnd, IDC_MESH_FORMAT_STL_RADIO, BST_CHECKED);
@@ -653,7 +661,17 @@ void CKinectFusionExplorer::InitializeUIControls()
     {
         CheckDlgButton(m_hWnd, IDC_MESH_FORMAT_OBJ_RADIO, BST_CHECKED);
     }
-    else if (Ply == m_saveMeshFormat)
+	//*/
+
+	if (Load == m_saveMeshFormat)
+	{
+		CheckDlgButton(m_hWnd, IDC_VOLUME_LOAD_RADIO, BST_CHECKED);
+	}
+	else if (Save == m_saveMeshFormat)
+	{
+		CheckDlgButton(m_hWnd, IDC_VOLUME_SAVE_RADIO, BST_CHECKED);
+	}
+	else if (Ply == m_saveMeshFormat)
     {
         CheckDlgButton(m_hWnd, IDC_MESH_FORMAT_PLY_RADIO, BST_CHECKED);
     }
@@ -714,13 +732,12 @@ void CKinectFusionExplorer::ProcessUI(WPARAM wParam, LPARAM)
         m_params.m_bPauseIntegration = true;
         m_processor.SetParams(m_params);
 
-        INuiFusionColorMesh *mesh = nullptr;
-        HRESULT hr = m_processor.CalculateMesh(&mesh);
+		HRESULT hr = S_OK;
 
         if (SUCCEEDED(hr))
         {
             // Save mesh
-            hr = SaveMeshFile(mesh, m_saveMeshFormat);
+            hr = SaveLoadVolume(m_saveMeshFormat);
 
             if (SUCCEEDED(hr))
             {
@@ -734,9 +751,6 @@ void CKinectFusionExplorer::ProcessUI(WPARAM wParam, LPARAM)
             {
                 SetStatusMessage(L"Error saving Kinect Fusion mesh!");
             }
-
-            // Release the mesh
-            SafeRelease(mesh);
         }
         else
         {
@@ -746,6 +760,8 @@ void CKinectFusionExplorer::ProcessUI(WPARAM wParam, LPARAM)
         // Restore pause state of integration
         m_params.m_bPauseIntegration = wasPaused;
         m_processor.SetParams(m_params);
+
+		// [TODO] enable "PauseIntegration" & update GUI
 
         m_bSavingMesh = false;
     }
@@ -838,6 +854,7 @@ void CKinectFusionExplorer::ProcessUI(WPARAM wParam, LPARAM)
     {
         m_params.m_reconstructionParams.voxelCountZ = 128;
     }
+	/*
     if (IDC_MESH_FORMAT_STL_RADIO == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
     {
         m_saveMeshFormat = Stl;
@@ -846,6 +863,15 @@ void CKinectFusionExplorer::ProcessUI(WPARAM wParam, LPARAM)
     {
         m_saveMeshFormat = Obj;
     }
+	//*/
+	if (IDC_VOLUME_LOAD_RADIO == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
+	{
+		m_saveMeshFormat = Load;
+	}
+	if (IDC_VOLUME_SAVE_RADIO == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
+	{
+		m_saveMeshFormat = Save;
+	}
     if (IDC_MESH_FORMAT_PLY_RADIO == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
     {
         m_saveMeshFormat = Ply;

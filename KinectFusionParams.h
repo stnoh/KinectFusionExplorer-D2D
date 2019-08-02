@@ -10,8 +10,8 @@
 
 enum KinectFusionMeshTypes
 {
-    Stl = 0,
-    Obj = 1,
+	Load = 0,
+	Save = 1,
     Ply = 2
 };
 
@@ -39,7 +39,7 @@ struct KinectFusionParams
         m_bCaptureColor(false),
         m_cColorIntegrationInterval(3),
         m_bTranslateResetPoseByMinDepthThreshold(true),
-        m_saveMeshType(Stl),
+        m_saveMeshType(Load),
         m_cDeltaFromReferenceFrameCalculationInterval(2),
         m_cMinSuccessfulTrackingFramesForCameraPoseFinder(45), // only update the camera pose finder initially after 45 successful frames (1.5s)
         m_cMinSuccessfulTrackingFramesForCameraPoseFinderAfterFailure(200), // resume integration following 200 successful frames after tracking failure (~7s)
