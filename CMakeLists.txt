@@ -11,7 +11,7 @@ file(GLOB
 
 file(GLOB
   sources
-  "*.cpp"
+  "*.cpp" "*.cc"
 )
 
 add_executable (KinectFusionExplorer WIN32 ${headers} ${sources})
