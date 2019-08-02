@@ -12,10 +12,11 @@
 #include "Timer.h"
 #include "KinectFusionParams.h"
 #include "KinectFusionProcessorFrame.h"
+//#include "KinectFusionProcessorSensor.h"
 
 #include "KinectFusionHelper.h"
-#include "KinectFusionProcessorSensor.h"
 
+#include <cvgl/RSCamera.h>
 
 /// <summary>
 /// Performs all Kinect Fusion processing for the KinectFusionExplorer.
@@ -112,7 +113,8 @@ private:
     HANDLE                      m_hThread;
     DWORD                       m_threadId;
 
-	KinectFusionProcessorSensor m_pSensor; // facade class for Kinect as RAII object
+	//KinectFusionProcessorSensor m_pSensor; // facade class for Kinect as RAII object
+	cvgl::RSCamera              m_pCamera;
 
     LONGLONG                    m_cLastDepthFrameTimeStamp;
     LONGLONG                    m_cLastColorFrameTimeStamp;
@@ -292,7 +294,7 @@ private:
     /// </summary>
     NUI_FUSION_IMAGE_FRAME*     m_pColorImage;
     NUI_FUSION_IMAGE_FRAME*     m_pResampledColorImageDepthAligned;
-	WAITABLE_HANDLE             m_coordinateMappingChangedEvent;
+	//WAITABLE_HANDLE             m_coordinateMappingChangedEvent;
 
     /// <summary>
     /// Frames generated from ray-casting the Reconstruction Volume.

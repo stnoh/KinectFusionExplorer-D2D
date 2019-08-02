@@ -72,7 +72,7 @@ KinectFusionProcessor::KinectFusionProcessor() :
 	m_pDownsampledShadedDeltaFromReference(nullptr),
 	m_pDownsampledRaycastPointCloud(nullptr),
 	m_bCalculateDeltaFrame(false),
-	m_coordinateMappingChangedEvent(NULL),
+	//m_coordinateMappingChangedEvent(NULL),
 	m_bHaveValidCameraParameters(false)
 {
     // Initialize synchronization objects
@@ -112,8 +112,10 @@ KinectFusionProcessor::~KinectFusionProcessor()
     SafeRelease(m_pVolume);
 
 	// [CAUTION!] it was subscribed in this scope
+	/*
 	if (nullptr != m_pSensor.m_pMapper)
 		m_pSensor.m_pMapper->UnsubscribeCoordinateMappingChanged(m_coordinateMappingChangedEvent);
+	//*/
 
     // Clean up Kinect Fusion Camera Pose Finder
     SafeRelease(m_pCameraPoseFinder);
@@ -226,26 +228,33 @@ DWORD KinectFusionProcessor::MainLoop()
     m_paramsNext.m_deviceIndex = m_paramsCurrent.m_deviceIndex;
 
     // Get and initialize the default Kinect sensor
+	/*
     m_pSensor.InitializeDefaultSensor();
 	m_pSensor.m_pMapper->SubscribeCoordinateMappingChanged(&m_coordinateMappingChangedEvent); // [CAUTION!] subscribe in the main loop
+	//*/
+	m_pCamera.Init();
+	m_pCamera.ReadCalibrationData();
 
 	// initialize KinectFusion algorithm (separated from sensor init)
 	if (SUCCEEDED(InitializeKinectFusion()))
 	{
 		m_bKinectFusionInitialized = true;
 	}
+	OnCoordinateMappingChanged(); // originally, it will be executed by "m_coordinateMappingChangedEvent"
 
     bool bStopProcessing = false;
 
     // Main loop
     while (!bStopProcessing)
     {
+		/*
         if (m_coordinateMappingChangedEvent != NULL &&
             WAIT_OBJECT_0 == WaitForSingleObject((HANDLE)m_coordinateMappingChangedEvent, 0))
         {
             OnCoordinateMappingChanged();
             ResetEvent((HANDLE)m_coordinateMappingChangedEvent);
         }
+		//*/
 
         HANDLE handles[] = { m_hStopProcessingEvent };
         DWORD waitResult = WaitForMultipleObjects(ARRAYSIZE(handles), handles, FALSE, 0);
@@ -320,14 +329,18 @@ DWORD KinectFusionProcessor::MainLoop()
             }
         }
 
+		// skip handling on invalid sensor ...
+		/*
         if (m_pSensor.m_pNuiSensor == nullptr)
         {
             // We have no sensor: Set frame rate to zero and notify the UI
             NotifyEmptyFrame();
         }
+		//*/
     }
 
-	m_pSensor.ShutdownSensor();
+	//m_pSensor.ShutdownSensor();
+	m_pCamera.End();
 
     return 0;
 }
@@ -403,12 +416,21 @@ HRESULT KinectFusionProcessor::OnCoordinateMappingChanged()
     // Calculate the down sampled image sizes, which are used for the AlignPointClouds calculation frames
     CameraIntrinsics intrinsics = {};
 
+	/*
 	m_pSensor.m_pMapper->GetDepthCameraIntrinsics(&intrinsics);
 
     float focalLengthX = intrinsics.FocalLengthX / NUI_DEPTH_RAW_WIDTH;
     float focalLengthY = intrinsics.FocalLengthY / NUI_DEPTH_RAW_HEIGHT;
     float principalPointX = intrinsics.PrincipalPointX / NUI_DEPTH_RAW_WIDTH;
     float principalPointY = intrinsics.PrincipalPointY / NUI_DEPTH_RAW_HEIGHT;
+	//*/
+
+	std::vector<float> calib;
+	m_pCamera.GetCalibData(0, calib, glm::mat4());
+	float focalLengthX = calib[0];
+	float focalLengthY = calib[1];
+	float principalPointX = calib[2];
+	float principalPointY = calib[3];
 
     if (m_cameraParameters.focalLengthX == focalLengthX && m_cameraParameters.focalLengthY == focalLengthY &&
         m_cameraParameters.principalPointX == principalPointX && m_cameraParameters.principalPointY == principalPointY)
@@ -458,6 +480,7 @@ HRESULT KinectFusionProcessor::OnCoordinateMappingChanged()
 	////////////////////////////////////////////////////////////
 	// check with public pointer
 	////////////////////////////////////////////////////////////
+	/*
 	if (nullptr == m_pSensor.pDepthUndistortedPixelBuffer())
     {
         SetStatusMessage(L"Failed to initialize Kinect Fusion depth image pixel buffer.");
@@ -492,7 +515,10 @@ HRESULT KinectFusionProcessor::OnCoordinateMappingChanged()
 	const UINT height = m_paramsCurrent.m_cDepthHeight;
 
     hr = m_pSensor.SetupUndistortion(m_cameraParameters, width, height, m_bHaveValidCameraParameters);
-    return hr;
+	//*/
+
+	m_bHaveValidCameraParameters = true; // calibration value should be valid ...
+	return hr;
 }
 
 
@@ -544,12 +570,25 @@ HRESULT KinectFusionProcessor::InitializeKinectFusion()
         return hr;
     }
 
+	/*
     const UINT width  = m_paramsCurrent.m_cDepthWidth;
     const UINT height = m_paramsCurrent.m_cDepthHeight;
     const UINT depthBufferSize = width * height;
 
     const UINT colorWidth  = m_paramsCurrent.m_cColorWidth;
     const UINT colorHeight = m_paramsCurrent.m_cColorHeight;
+	//*/
+
+	// dependent on runtime camera values
+	cv::Size depth_size = m_pCamera.GetDepthImageSize();
+	cv::Size color_size = m_pCamera.GetColorImageSize();
+
+	const UINT width  = depth_size.width;
+	const UINT height = depth_size.height;
+	const UINT depthBufferSize = width * height;
+
+	const UINT colorWidth  = color_size.width;
+	const UINT colorHeight = color_size.height;
 
     // Calculate the down sampled image sizes, which are used for the AlignPointClouds calculation frames
     const UINT downsampledWidth  = width  / m_paramsCurrent.m_cAlignPointCloudsImageDownsampleFactor;
@@ -611,6 +650,7 @@ HRESULT KinectFusionProcessor::InitializeKinectFusion()
 	CHECK_FAILED(hr = CreateFrame(NUI_FUSION_IMAGE_TYPE_POINT_CLOUD, downsampledWidth, downsampledHeight, &m_pDownsampledDepthPointCloud));
 
 	// image buffers with default types: handled by sensor object
+	/*
 	if (FAILED(hr = m_pSensor.InitializeBuffers(m_paramsCurrent)))
 	{
 		return E_OUTOFMEMORY;
@@ -621,6 +661,7 @@ HRESULT KinectFusionProcessor::InitializeKinectFusion()
     {
         m_pSensor.SetupUndistortion(m_cameraParameters, width, height, m_bHaveValidCameraParameters);
     }
+	//*/
 
     SafeRelease(m_pCameraPoseFinder);
 
@@ -789,7 +830,9 @@ HRESULT KinectFusionProcessor::GetKinectFrames(bool &colorSynchronized)
 
     ////////////////////////////////////////////////////////
     // Get an extended depth frame from Kinect
-	hr = m_pSensor.CopyDepth(currentDepthFrameTime);
+	//hr = m_pSensor.CopyDepth(currentDepthFrameTime);
+
+	m_pCamera.Update();
 
 	if (FAILED(hr)) {
 		return hr;
@@ -801,7 +844,17 @@ HRESULT KinectFusionProcessor::GetKinectFrames(bool &colorSynchronized)
     if(m_paramsCurrent.m_bCaptureColor)
     {
         currentColorFrameTime = m_cLastColorFrameTimeStamp;
-		hr = m_pSensor.CopyColor(m_pColorImage, currentColorFrameTime, colorSynchronized);
+		//hr = m_pSensor.CopyColor(m_pColorImage, currentColorFrameTime, colorSynchronized);
+
+		////////////////////////////////////////////////////////////////////////////////
+		// get color image and convert it to BGRA format
+		////////////////////////////////////////////////////////////////////////////////
+		cv::Mat color_BGR  = m_pCamera.GetColorImage();
+		cv::Mat color_BGRA;
+		cv::cvtColor(color_BGR, color_BGRA, CV_BGR2BGRA);
+
+		// copy BGRA image to m_pColorImage ...
+		memcpy(m_pColorImage->pFrameBuffer->pBits, color_BGRA.data, m_pColorImage->width * m_pColorImage->height * sizeof(unsigned char) * 4);
 
         // Check color and depth frame timestamps to ensure they were captured at the same time
         // If not, we attempt to re-synchronize by getting a new frame from the stream that is behind.
@@ -1056,6 +1109,7 @@ bool KinectFusionProcessor::IntegrateSingleFrame()
 
     // Get the next frames from Kinect
     hr = GetKinectFrames(colorSynchronized);
+	colorSynchronized = true; // assume it always sync !
 
     if (FAILED(hr))
     {
@@ -1067,13 +1121,16 @@ bool KinectFusionProcessor::IntegrateSingleFrame()
 
     ////////////////////////////////////////////////////////
     // Depth to Depth Float
+	cv::Mat depth = m_pCamera.GetDepthImage();
+	UINT16* depth_ptr = (UINT16*)depth.data;
 
     // Convert the pixels describing extended depth as unsigned short type in millimeters to depth
     // as floating point type in meters.
     if (nullptr == m_pVolume)
     {
         hr =  NuiFusionDepthToDepthFloatFrame(
-			m_pSensor.pDepthUndistortedPixelBuffer(),
+			//m_pSensor.pDepthUndistortedPixelBuffer(),
+			depth_ptr,
             m_paramsCurrent.m_cDepthWidth,
             m_paramsCurrent.m_cDepthHeight,
             m_pDepthFloatImage,
@@ -1084,7 +1141,8 @@ bool KinectFusionProcessor::IntegrateSingleFrame()
     else
     {
         hr = m_pVolume->DepthToDepthFloatFrame(
-			m_pSensor.pDepthUndistortedPixelBuffer(),
+			//m_pSensor.pDepthUndistortedPixelBuffer(),
+			depth_ptr,
             m_paramsCurrent.m_cDepthImagePixels * sizeof(UINT16),
             m_pDepthFloatImage,
             m_paramsCurrent.m_fMinDepthThreshold,
@@ -1223,8 +1281,16 @@ bool KinectFusionProcessor::IntegrateSingleFrame()
 
         if (integrateColor)
         {
+			////////////////////////////////////////////////////////////////////////////////
             // Map the color frame to the depth - this fills m_pResampledColorImageDepthAligned
-			m_pSensor.MapColorToDepth(m_pColorImage, m_pResampledColorImageDepthAligned, m_paramsCurrent);
+			////////////////////////////////////////////////////////////////////////////////
+			//m_pSensor.MapColorToDepth(m_pColorImage, m_pResampledColorImageDepthAligned, m_paramsCurrent);
+
+			// [TODO] handle "mirror" around here
+
+			cv::Mat color_layer = m_pCamera.GetColoredLayer();
+			UINT8* color_layer_ptr = color_layer.data;
+			memcpy(m_pResampledColorImageDepthAligned->pFrameBuffer->pBits, color_layer_ptr, m_pResampledColorImageDepthAligned->width * m_pResampledColorImageDepthAligned->height * sizeof(unsigned char) * 4);
 
             // Integrate the depth and color data into the volume from the calculated camera pose
             hr = m_pVolume->IntegrateFrame(
@@ -1513,7 +1579,7 @@ HRESULT KinectFusionProcessor::FindCameraPoseAlignPointClouds()
     double bestNeighborAlignmentEnergy = m_paramsCurrent.m_fMaxAlignPointCloudsEnergyForSuccess;
 
     // Run alignment with best matched poses (i.e. k nearest neighbors (kNN))
-    unsigned int maxTests = min(m_paramsCurrent.m_cMaxCameraPoseFinderPoseTests, cPoses);
+    unsigned int maxTests = std::min(m_paramsCurrent.m_cMaxCameraPoseFinderPoseTests, cPoses); // why it needed now ?
 
     for (unsigned int n = 0; n < maxTests; n++)
     {
@@ -1699,7 +1765,7 @@ HRESULT KinectFusionProcessor::FindCameraPoseAlignDepthFloatToReconstruction()
     double bestNeighborAlignmentEnergy = m_paramsCurrent.m_fMaxAlignToReconstructionEnergyForSuccess;
 
     // Run alignment with best matched poses (i.e. k nearest neighbors (kNN))
-    unsigned int maxTests = min(m_paramsCurrent.m_cMaxCameraPoseFinderPoseTests, cPoses);
+    unsigned int maxTests = std::min(m_paramsCurrent.m_cMaxCameraPoseFinderPoseTests, cPoses); // why it needed now ?
 
     for (unsigned int n = 0; n < maxTests; n++)
     {
