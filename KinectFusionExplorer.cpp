@@ -681,6 +681,11 @@ void CKinectFusionExplorer::InitializeUIControls()
         CheckDlgButton(m_hWnd, IDC_CHECK_CAPTURE_COLOR, BST_CHECKED);
     }
 
+	if (m_params.m_bMirrorDepthFrame)
+	{
+		CheckDlgButton(m_hWnd, IDC_CHECK_MIRROR_DEPTH, BST_CHECKED);
+	}
+
     if (m_params.m_bAutoFindCameraPoseWhenLost)
     {
         CheckDlgButton(m_hWnd, IDC_CHECK_CAMERA_POSE_FINDER, BST_CHECKED);

@@ -622,8 +622,8 @@ HRESULT DownsampleColorFrameToDepthResolution(NUI_FUSION_IMAGE_FRAME *src, NUI_F
         return E_INVALIDARG;
     }
 
-    if (src->imageType != NUI_FUSION_IMAGE_TYPE_COLOR || src->imageType != dest->imageType 
-        || src->width != 1920 || src->height != 1080 || dest->width != NUI_DEPTH_RAW_WIDTH || dest->height != NUI_DEPTH_RAW_HEIGHT)
+	// [CAUTION] assumption on size is invalid if we use different camera
+    if (src->imageType != NUI_FUSION_IMAGE_TYPE_COLOR || src->imageType != dest->imageType)
     {
         return E_INVALIDARG;
     }
@@ -631,7 +631,7 @@ HRESULT DownsampleColorFrameToDepthResolution(NUI_FUSION_IMAGE_FRAME *src, NUI_F
     NUI_FUSION_BUFFER *srcFrameBuffer = src->pFrameBuffer;
     NUI_FUSION_BUFFER *downsampledFloatFrameBuffer = dest->pFrameBuffer;
 
-    float factor = 1080.0f / NUI_DEPTH_RAW_HEIGHT;
+	float factor = (float)src->height / (float)dest->height;
 
     // Make sure we've received valid data
     if (srcFrameBuffer->Pitch == 0 || downsampledFloatFrameBuffer->Pitch == 0)
