@@ -11,16 +11,16 @@ file(GLOB
 
 file(GLOB
   sources
-  "*.cpp" "*.cc"
+  "*.cpp"
 )
 
 add_executable (KinectFusionExplorer WIN32 ${headers} ${sources})
 
 target_include_directories(KinectFusionExplorer PUBLIC
-  cvgl ${CMAKE_SOURCE_DIR}/external/pugixml/src
+  cvgl
 )
 
-target_link_libraries(KinectFusionExplorer cvgl Kinect2::Core Kinect2::Fusion protobuf::libprotobuf RSSDK::Core)
+target_link_libraries(KinectFusionExplorer cvgl Kinect2::Core KinectFusionEx RSSDK::Core)
 
 add_custom_command(TARGET KinectFusionExplorer POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${KINECT2_ROOT}/Redist/Fusion/x64/Kinect20.Fusion.dll ${CMAKE_CURRENT_BINARY_DIR}
