@@ -188,22 +188,6 @@ LRESULT CALLBACK CKinectFusionExplorer::DlgProc(
             // Bind application window handle
             m_hWnd = hWnd;
 
-			////////////////////////////////////////////////////////////
-			// initialize KinectFusionParams values here
-			////////////////////////////////////////////////////////////
-			m_params.m_cDepthWidth  = 640;
-			m_params.m_cDepthHeight = 480;
-			m_params.m_cDepthImagePixels = m_params.m_cDepthWidth * m_params.m_cDepthHeight;
-			m_params.m_cColorWidth  = 960;
-			m_params.m_cColorHeight = 540;
-			m_params.m_cColorImagePixels = m_params.m_cColorWidth * m_params.m_cColorHeight;
-
-			m_params.m_fMinDepthThreshold = MIN_DEPTH_DISTANCE_MM * cvgl::mm2m;
-			m_params.m_fMaxDepthThreshold = MAX_DEPTH_DISTANCE_MM * cvgl::mm2m;
-
-			m_params.m_bMirrorDepthFrame = true; // Kinect is mirrored as DEFAULT, but others do not.
-			m_params.m_bCaptureColor = true;
-
             InitializeUIControls();
 
             // Init Direct2D

@@ -26,7 +26,7 @@ KinectFusionProcessorSensor::KinectFusionProcessorSensor() :
 	, m_pDepthRawPixelBuffer(nullptr)
 	, m_pColorCoordinates(nullptr)
 	, m_pDepthVisibilityTestMap(nullptr)
-	, m_pMapper(nullptr)
+	//, m_pMapper(nullptr)
 	, m_pDepthDistortionMap(nullptr)
 	, m_pDepthDistortionLT(nullptr)
 {
@@ -38,7 +38,7 @@ KinectFusionProcessorSensor::KinectFusionProcessorSensor() :
 /// </summary>
 KinectFusionProcessorSensor::~KinectFusionProcessorSensor()
 {
-	SafeRelease(m_pMapper);
+	//SafeRelease(m_pMapper);
 
 	// Clean up the depth pixel array
 	SAFE_DELETE_ARRAY(m_pDepthUndistortedPixelBuffer);
@@ -52,8 +52,10 @@ KinectFusionProcessorSensor::~KinectFusionProcessorSensor()
 	SAFE_DELETE_ARRAY(m_pDepthDistortionLT);
 
 	// done with depth frame reader
-	SafeRelease(m_pDepthFrameReader);
-	SafeRelease(m_pColorFrameReader);
+	//SafeRelease(m_pDepthFrameReader);
+	//SafeRelease(m_pColorFrameReader);
+
+	delete m_pNuiSensor;
 }
 
 /// <summary>
@@ -62,6 +64,7 @@ KinectFusionProcessorSensor::~KinectFusionProcessorSensor()
 /// <returns>indicates success or failure</returns>
 HRESULT KinectFusionProcessorSensor::InitializeDefaultSensor()
 {
+#if false
 	HRESULT hr;
 
 	hr = GetDefaultKinectSensor(&m_pNuiSensor);
@@ -114,6 +117,16 @@ HRESULT KinectFusionProcessorSensor::InitializeDefaultSensor()
 	}
 
 	return hr;
+#endif
+	m_pNuiSensor = new cvgl::RSCamera();
+
+	char calib_data[1024];
+	sprintf_s(calib_data, "%s/calib_rgbd.xml", SHARED_DATA_PATH);
+	if (!m_pNuiSensor->ReadCalibrationData(calib_data)) return E_FAIL;
+
+	if (!m_pNuiSensor->Init()) return E_FAIL;
+
+	return S_OK;
 }
 
 /// <summary>
@@ -121,12 +134,15 @@ HRESULT KinectFusionProcessorSensor::InitializeDefaultSensor()
 /// </summary>
 void KinectFusionProcessorSensor::ShutdownSensor()
 {
+#if false
 	// Clean up Kinect
 	if (m_pNuiSensor != nullptr)
 	{
 		m_pNuiSensor->Close();
 		SafeRelease(m_pNuiSensor);
 	}
+#endif
+	m_pNuiSensor->End();
 }
 
 /// <summary>
@@ -134,6 +150,7 @@ void KinectFusionProcessorSensor::ShutdownSensor()
 /// </summary>
 HRESULT KinectFusionProcessorSensor::SetupUndistortion(NUI_FUSION_CAMERA_PARAMETERS m_cameraParameters, UINT width, UINT height, bool& m_bHaveValidCameraParameters)
 {
+#if false
     HRESULT hr = E_UNEXPECTED;
 
     if (m_cameraParameters.principalPointX != 0)
@@ -214,6 +231,9 @@ HRESULT KinectFusionProcessorSensor::SetupUndistortion(NUI_FUSION_CAMERA_PARAMET
         m_bHaveValidCameraParameters = false;
     }
     return S_OK;
+#endif
+	if (!m_pNuiSensor) return E_FAIL;
+	return S_OK;
 }
 
 /// <summary>
@@ -222,6 +242,7 @@ HRESULT KinectFusionProcessorSensor::SetupUndistortion(NUI_FUSION_CAMERA_PARAMET
 /// <returns>S_OK on success, otherwise failure code</returns>
 HRESULT KinectFusionProcessorSensor::CopyDepth(INT64& currentDepthFrameTime)
 {
+#if false
 	// wrapping previous function by lambda
 	auto copyDepth = [&](IDepthFrame* pDepthFrame)->HRESULT {
 		// Check the frame pointer
@@ -272,6 +293,17 @@ HRESULT KinectFusionProcessorSensor::CopyDepth(INT64& currentDepthFrameTime)
 	SafeRelease(pDepthFrame);
 
 	return S_OK;
+#endif
+	if (!m_pNuiSensor) return E_FAIL;
+
+	m_pNuiSensor->Update();
+
+	cv::Size depthSize = m_pNuiSensor->GetDepthImageSize();
+
+	int size_d = depthSize.width * depthSize.height * sizeof(UINT16);
+	memcpy_s(m_pDepthUndistortedPixelBuffer, size_d, m_pNuiSensor->GetDepthImage().data, size_d);
+
+	return S_OK;
 }
 
 /// <summary>
@@ -281,6 +313,7 @@ HRESULT KinectFusionProcessorSensor::CopyDepth(INT64& currentDepthFrameTime)
 /// <returns>S_OK on success, otherwise failure code</returns>
 HRESULT KinectFusionProcessorSensor::CopyColor(const NUI_FUSION_IMAGE_FRAME* m_pColorImage, INT64& currentColorFrameTime, bool& colorSynchronized)
 {
+#if false
 	// wrapping previous function by lambda
 	auto copyColor = [&](IColorFrame* pColorFrame)->HRESULT {
 		HRESULT hr = S_OK;
@@ -336,6 +369,25 @@ HRESULT KinectFusionProcessorSensor::CopyColor(const NUI_FUSION_IMAGE_FRAME* m_p
 	SafeRelease(pColorFrame);
 
 	return S_OK;
+#endif
+	if (!m_pNuiSensor) return E_FAIL;
+
+	NUI_FUSION_BUFFER *destColorBuffer = m_pColorImage->pFrameBuffer;
+
+	// Copy the color pixels so we can return the image frame
+	cv::Mat color_bgr = m_pNuiSensor->GetColorImage();
+	if (0 == color_bgr.cols || 0 == color_bgr.rows)
+	{
+		return E_INVALIDARG;
+	}
+
+	cv::Mat color_bgra(color_bgr.rows, color_bgr.cols, CV_8UC4);
+	cv::cvtColor(color_bgr, color_bgra, CV_BGR2BGRA);
+
+	int size_c = m_pColorImage->width * m_pColorImage->height * sizeof(int);
+	memcpy_s(destColorBuffer->pBits, size_c, color_bgra.data, size_c);
+
+	return S_OK;
 }
 
 /// <summary>
@@ -344,6 +396,7 @@ HRESULT KinectFusionProcessorSensor::CopyColor(const NUI_FUSION_IMAGE_FRAME* m_p
 /// <returns>S_OK for success, or failure code</returns>
 HRESULT KinectFusionProcessorSensor::MapColorToDepth(const NUI_FUSION_IMAGE_FRAME* m_pColorImage, NUI_FUSION_IMAGE_FRAME* m_pResampledColorImageDepthAligned, KinectFusionParams m_paramsCurrent)
 {
+#if false
     HRESULT hr = S_OK;
 
     if (nullptr == m_pColorImage || nullptr == m_pResampledColorImageDepthAligned 
@@ -507,6 +560,19 @@ HRESULT KinectFusionProcessorSensor::MapColorToDepth(const NUI_FUSION_IMAGE_FRAM
     }
 
     return hr;
+#endif
+	if (!m_pNuiSensor) return E_FAIL;
+
+	NUI_FUSION_BUFFER *destColorBuffer = m_pResampledColorImageDepthAligned->pFrameBuffer;
+
+	int *colorDataInDepthFrame = reinterpret_cast<int*>(destColorBuffer->pBits);
+
+	// color layer on depth image
+	int size_dc = m_pResampledColorImageDepthAligned->width * m_pResampledColorImageDepthAligned->height * sizeof(int);
+	cv::Mat colorLayer = m_pNuiSensor->GetColoredLayer();
+	memcpy_s(colorDataInDepthFrame, size_dc, colorLayer.data, size_dc);
+
+	return S_OK;
 }
 
 HRESULT KinectFusionProcessorSensor::InitializeBuffers(KinectFusionParams m_paramsCurrent)

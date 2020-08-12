@@ -17,7 +17,7 @@ file(GLOB
 add_executable (KinectFusionExplorer WIN32 ${headers} ${sources})
 
 target_include_directories(KinectFusionExplorer PUBLIC
-  cvgl
+  cvgl KinectFusionEx
 )
 
 target_link_libraries(KinectFusionExplorer cvgl Kinect2::Core KinectFusionEx RSSDK::Core)

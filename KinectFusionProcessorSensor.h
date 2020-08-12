@@ -11,6 +11,8 @@
 
 #include "KinectFusionParams.h"
 
+#include <cvgl/RSCamera.h>
+
 /// <summary>
 /// Kinect controlling part in Kinect Fusion algorithm.
 /// </summary>
@@ -41,11 +43,15 @@ public:
 	/// </summary>
 	void                        ShutdownSensor();
 
+#if false
 	IKinectSensor*              m_pNuiSensor;
 	IDepthFrameReader*          m_pDepthFrameReader;
 	IColorFrameReader*          m_pColorFrameReader;
 
 	ICoordinateMapper*          m_pMapper;
+#endif
+
+	cvgl::RGBDCamera*             m_pNuiSensor;
 
 	/// <summary>
 	/// Setup or update the Undistortion calculation for the connected camera

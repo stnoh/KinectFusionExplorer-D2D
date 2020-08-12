@@ -31,9 +31,9 @@ struct KinectFusionParams
         m_bAutoResetReconstructionWhenLost(false),
         m_bAutoResetReconstructionOnTimeout(false), // We now try to find the camera pose, however, setting this false will no longer auto reset on .xef file playback
         m_bAutoFindCameraPoseWhenLost(true),
-        m_fMinDepthThreshold(NUI_FUSION_DEFAULT_MINIMUM_DEPTH),
-        m_fMaxDepthThreshold(NUI_FUSION_DEFAULT_MAXIMUM_DEPTH),
-        m_bMirrorDepthFrame(false),
+        m_fMinDepthThreshold(0.15f),
+        m_fMaxDepthThreshold(1.20f),
+        m_bMirrorDepthFrame(true),
         m_cMaxIntegrationWeight(NUI_FUSION_DEFAULT_INTEGRATION_WEIGHT),
         m_bDisplaySurfaceNormals(false),
         m_bCaptureColor(true),
@@ -63,12 +63,12 @@ struct KinectFusionParams
         // Get the depth frame size from the NUI_IMAGE_RESOLUTION enum.
         // You can use NUI_IMAGE_RESOLUTION_640x480 or NUI_IMAGE_RESOLUTION_320x240 in this sample.
         // Smaller resolutions will be faster in per-frame computations, but show less detail in reconstructions
-        m_cDepthWidth = NUI_DEPTH_RAW_WIDTH;
-        m_cDepthHeight = NUI_DEPTH_RAW_HEIGHT;
+        m_cDepthWidth = 640;
+        m_cDepthHeight = 480;
         m_cDepthImagePixels = m_cDepthWidth*m_cDepthHeight;
 
-        m_cColorWidth  = 1920;
-        m_cColorHeight = 1080;
+        m_cColorWidth  = 960;
+        m_cColorHeight = 540;
         m_cColorImagePixels = m_cColorWidth*m_cColorHeight;
 
         // Define a cubic Kinect Fusion reconstruction volume, with the sensor at the center of the
